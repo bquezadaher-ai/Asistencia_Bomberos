@@ -293,6 +293,32 @@
     q("#stop").addEventListener("click", ()=>{
       html5QrCode.stop().then(()=>{ camStatus.textContent="Detenida"; })
         .catch(()=>{ camStatus.textContent="Error al detener"; });
+      <section class="card">
+  <h3>Configuración</h3>
+  <label>Endpoint:</label>
+  <input type="text" id="cfg-endpoint" placeholder="https://script.google.com/macros/s/XXXX/exec" style="width:100%">
+  
+  <label>Secreto:</label>
+  <input type="password" id="cfg-secret" placeholder="Tu clave secreta" style="width:100%">
+  
+  <button onclick="guardarConfig()">Guardar configuración</button>
+</section>
+
+<script>
+function guardarConfig() {
+  const endpoint = document.getElementById("cfg-endpoint").value;
+  const secret   = document.getElementById("cfg-secret").value;
+  localStorage.setItem("asistencia_endpoint", endpoint);
+  localStorage.setItem("asistencia_secret", secret);
+  alert("✅ Configuración guardada. Recarga la página.");
+}
+
+// Cargar config al inicio
+window.onload = () => {
+  const endpoint = localStorage.getItem("asistencia_endpoint") || "";
+  const secret   = localStorage.getItem("asistencia_secret") || "";
+  if (endpoint) document.getElementById("cfg-endpoint").value = endpoint;
+  if (secret) document.getElementById("cfg-secret").value = secret;
     });
   </script>
 </body>
