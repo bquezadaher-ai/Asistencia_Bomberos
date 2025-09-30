@@ -110,7 +110,7 @@
       </section>
     </div>
 
-    <!-- Panel de configuración (VISIBLE, fuera del <script>) -->
+    <!-- Panel de configuración -->
     <section class="card" style="margin-top:12px">
       <h3>Configuración</h3>
       <label>Endpoint:</label>
@@ -124,37 +124,33 @@
   </div>
 
   <script>
-    // ====== CONFIG POR DEFECTO (se puede sobrescribir con el panel) ======
-    let ENDPOINT = "https://script.google.com/macros/s/AKfycbyAyIpUWL1xcpVFDIWlEQLushk8aeAugwtI_JMhNEKdLRuhn2F-Ii1AxcdMBhzj_GTy/exec";
-    let SECRET   = "1969";
-    const ESTADO_LOCAL_KEY = "asist_queue_v1";
-    const DUP_WINDOW_MS = 8000;
-    // =====================================================================
-
-    // Cargar/guardar configuración desde localStorage
+    // ====== CONFIGURACIÓN DINÁMICA (desde localStorage) ======
     const LS_EP = "asistencia_endpoint";
     const LS_SC = "asistencia_secret";
-    function loadCfg(){
-      const ep = localStorage.getItem(LS_EP);
-      const sc = localStorage.getItem(LS_SC);
-      if(ep) ENDPOINT = ep;
-      if(sc) SECRET   = sc;
-      document.getElementById("cfg-endpoint").value = ENDPOINT || "";
-      document.getElementById("cfg-secret").value   = SECRET || "";
-      document.getElementById("ep").textContent = ENDPOINT || "(sin configurar)";
-    }
-    function saveCfg(){
-      const ep = document.getElementById("cfg-endpoint").value.trim();
-      const sc = document.getElementById("cfg-secret").value.trim();
-      localStorage.setItem(LS_EP, ep);
-      localStorage.setItem(LS_SC, sc);
-      loadCfg();
-      alert("✅ Configuración guardada. Recarga si es necesario.");
-    }
-    document.getElementById("saveCfg").addEventListener("click", saveCfg);
-    loadCfg();
+    let ENDPOINT = localStorage.getItem(LS_EP) || "";
+    let SECRET   = localStorage.getItem(LS_SC) || "";
+    const ESTADO_LOCAL_KEY = "asist_queue_v1";
+    const DUP_WINDOW_MS = 8000;
+    // =========================================================
 
+    // Mostrar zona horaria y endpoint
     document.getElementById("tz").textContent = `Horario del dispositivo: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
+    document.getElementById("ep").textContent = ENDPOINT || "(sin configurar)";
+
+    // Rellenar panel de configuración
+    document.getElementById("cfg-endpoint").value = ENDPOINT;
+    document.getElementById("cfg-secret").value   = SECRET;
+
+    // Guardar config
+    document.getElementById("saveCfg").addEventListener("click", () => {
+      ENDPOINT = document.getElementById("cfg-endpoint").value.trim();
+      SECRET   = document.getElementById("cfg-secret").value.trim();
+      localStorage.setItem(LS_EP, ENDPOINT);
+      localStorage.setItem(LS_SC, SECRET);
+      document.getElementById("ep").textContent = ENDPOINT || "(sin configurar)";
+      alert("✅ Configuración guardada.");
+    });
+
     const q = (s)=>document.querySelector(s);
     const lastBox = q("#last");
     const netPill = q("#net");
@@ -247,7 +243,7 @@
     }).catch(()=>{ camsSel.innerHTML="<option>(No hay cámaras)</option>"; });
 
     q("#start").addEventListener("click", ()=>{
-      if(!currentCamId){ alert("No hay cámara disponible."); return; }
+      if(!currentCamId){ alert("No hay cámara disponible o permisos bloqueados."); return; }
       html5QrCode.start(currentCamId,{ fps:10, qrbox:250 }, (decodedText)=> enviarRegistro(decodedText), ()=>{})
         .then(()=>{ camStatus.textContent="En ejecución"; updateAforo(); })
         .catch(()=>{ camStatus.textContent="Error cámara"; });
