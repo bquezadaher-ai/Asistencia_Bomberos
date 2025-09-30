@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aforo en Vivo — Bomberos</title>
+  <style>
+    :root{ --bg:#0b1020; --ink:#e9ecff; --muted:#9aa3c7; --accent:#6aa7ff; }
+    body{ margin:0; background:linear-gradient(120deg,#0b1020,#0e1430); color:var(--ink); font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial,'Noto Sans',sans-serif }
+    .wrap{ max-width:720px; margin:0 auto; padding:20px }
+    h1{ margin:0 0 12px }
+    .card{ background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:16px }
+    label{ font-size:12px; color:var(--muted) }
+    input,button{ width:100%; padding:10px 12px; border-radius:12px; background:#0d1433; border:1px solid rgba(255,255,255,.12); color:var(--ink) }
+    button{ cursor:pointer }
+    .row{ display:grid; grid-template-columns:1fr 1fr; gap:10px }
+    @media (max-width:680px){ .row{ grid-template-columns:1fr } }
+    .aforo{ display:flex; align-items:center; justify-content:center; height:200px; font-size:96px; font-weight:900; letter-spacing:3px; background:#0b1333; border-radius:14px; border:1px solid rgba(255,255,255,.08) }
+    .muted{ color:var(--muted) }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Aforo en Vivo — Bomberos</h1>
+    <div class="card">
+      <div class="row">
+        <div>
+          <label>Evento / Guardia</label>
+          <input id="evento" placeholder="Guardia Nocturna 2025-10-01">
+        </div>
+        <div>
+          <label>Estación / Cuartel</label>
+          <input id="estacion" placeholder="2ª Compañía Mirasol - Algarrobo">
+        </div>
+      </div>
+      <div style="margin:10px 0">
+        <label>Endpoint (Apps Script WebApp)</label>
+        <input id="endpoint" placeholder="https://script.google.com/macros/s/.../exec">
+      </div>
+      <div class="row">
+        <div>
+          <label>Secreto</label>
+          <input id="secret" placeholder="CLAVE_SECRETA_123">
+        </div>
+        <div>
+          <button id="save">Guardar</button>
+        </div>
+      </div>
+      <div style="margin:12px 0" class="aforo" id="num">—</div>
+      <div class="row">
+        <button id="refresh">Actualizar</button>
+        <button id="auto">Auto (cada 10s)</button>
+      </div>
+      <p class="muted" style="margin-top:10px">Cuenta cuántos están presentes según su último pase (Entrada/Salida) por RUN.</p>
+    </div>
+  </div>
+
+  <script>
+    const num = document.getElementById("num");
+    const LS = "aforo_cfg_v1";
+    let cfg = JSON.parse(localStorage.getItem(LS) || "{}");
+
+    function save(){
+      cfg = {
+        endpoint: document.getElementById("endpoint").value.trim(),
+        secret: document.getElementById("secret").value.trim(),
+        evento: document.getElementById("evento").value.trim(),
+        estacion: document.getElementById("estacion").value.trim()
+      };
+      localStorage.setItem(LS, JSON.stringify(cfg));
+    }
+    document.getElementById("save").addEventListener("click", save);
+
+    async function fetchCount(){
+      if(!cfg.endpoint || !cfg.secret){ num.textContent = "—"; return; }
+      const url = `${cfg.endpoint}?secret=${encodeURIComponent(cfg.secret)}&evento=${encodeURIComponent(cfg.evento||"")}&estacion=${encodeURIComponent(cfg.estacion||"")}&fmt=json`;
+      try{
+        const res = await fetch(url);
+        const data = await res.json();
+        num.textContent = (typeof data.presentes === "number") ? data.presentes : "—";
+      }catch(e){ num.textContent = "—"; }
+    }
+    document.getElementById("refresh").addEventListener("click", fetchCount);
+
+    let timer=null;
+    document.getElementById("auto").addEventListener("click", ()=>{
+      if(timer){ clearInterval(timer); timer=null; num.style.opacity=1; return; }
+      timer = setInterval(fetchCount, 10000);
+      fetchCount();
+      num.style.opacity=.9;
+    });
+
+    // init UI
+    if(cfg.endpoint) document.getElementById("endpoint").value = cfg.endpoint;
+    if(cfg.secret) document.getElementById("secret").value = cfg.secret;
+    if(cfg.evento) document.getElementById("evento").value = cfg.evento;
+    if(cfg.estacion) document.getElementById("estacion").value = cfg.estacion;
+  </script>
+</body>
+</html>
