@@ -115,8 +115,8 @@
 
   <script>
     // ========== CONFIGURA AQUÍ ==========
-    const ENDPOINT = "PEGAR_URL_WEBAPP_AQUI"; // <-- Reemplaza por la URL del WebApp de Apps Script
-    const SECRET   = "CAMBIA_ESTA_CLAVE_123";  // <-- Debe coincidir con el SECRET del Apps Script
+    const ENDPOINT = "https://script.google.com/macros/s/AKfycbyAyIpUWL1xcpVFDIWlEQLushk8aeAugwtI_JMhNEKdLRuhn2F-Ii1AxcdMBhzj_GTy/exec"; // <-- Reemplaza por la URL del WebApp de Apps Script
+    const SECRET   = "1969";  // <-- Debe coincidir con el SECRET del Apps Script
     const ESTADO_LOCAL_KEY = "asist_queue_v1";
     const DUP_WINDOW_MS = 8000; // ventana anti-doble-lectura (8s)
     // ====================================
@@ -180,10 +180,10 @@
       const payload = {
         secret: SECRET,
         run: (runText || "").trim(),
-        evento: q("#evento").value.trim() || "Guardia",
+        evento: q("#evento").value.trim(Guardia) || "Guardia",
         tipo: q("#tipo").value,
-        operador: q("#operador").value.trim() || "Oficial",
-        estacion: q("#estacion").value.trim() || "Cuartel",
+        operador: q("#operador").value.trim(Voluntario) || "Oficial",
+        estacion: q("#estacion").value.trim(2° Cuartel) || "Cuartel",
         userAgent: navigator.userAgent,
       };
 
