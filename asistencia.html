@@ -1,258 +1,89 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Asistencia Bomberos</title>
-  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.9/minified/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/minified/html5-qrcode.min.js"></script>
   <style>
-    :root{ --bg:#0b1020; --card:#111735; --ink:#e9ecff; --muted:#9aa3c7; --accent:#6aa7ff; --ok:#36d399; --warn:#f59e0b; --bad:#ef4444; }
-    *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(120deg,#0b1020,#0e1430);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial,'Noto Sans',sans-serif}
-    .wrap{max-width:1000px;margin:0 auto;padding:18px}
-    h1{font-size:22px;margin:0 0 10px}
-    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}
-    @media (max-width:920px){.grid{grid-template-columns:1fr}}
-    .card{background:linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px}
-    label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
-    input,select,button{width:100%;padding:10px 12px;border-radius:12px;background:#0d1433;border:1px solid rgba(255,255,255,.12);color:var(--ink)}
-    button{cursor:pointer}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .muted{color:var(--muted)}
-    .log{max-height:260px;overflow:auto;background:#0b1333;border-radius:10px;padding:8px;border:1px solid rgba(255,255,255,.08)}
-    .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
-    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#0d1433;border:1px solid rgba(255,255,255,.1);font-size:12px;color:#cdd5ff}
-    .flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .aforoBox{display:flex;align-items:center;justify-content:center;height:140px;border-radius:14px;background:#0b1333;border:1px solid rgba(255,255,255,.08);}
-    .aforoNum{font-size:64px;font-weight:800;letter-spacing:2px}
+    body { font-family: Arial, sans-serif; background:#0b1020; color:#e9ecff; text-align:center; }
+    .card { background:#111735; padding:20px; margin:20px auto; border-radius:12px; max-width:700px; }
+    h2 { color:#36d399; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>Asistencia — Bomberos</h1>
-    <div class="grid">
-      <!-- Lector y controles -->
-      <section class="card">
-        <div class="row">
-          <div>
-            <label>Evento / Guardia</label>
-            <input id="evento" placeholder="Guardia Nocturna 2025-10-01" />
-          </div>
-          <div>
-            <label>Estación / Cuartel</label>
-            <input id="estacion" placeholder="2ª Compañía Mirasol - Algarrobo" />
-          </div>
-        </div>
-        <div class="row" style="margin-top:8px">
-          <div>
-            <label>Tipo de pase</label>
-            <select id="tipo">
-              <option value="Entrada">Entrada</option>
-              <option value="Salida">Salida</option>
-            </select>
-          </div>
-          <div>
-            <label>Operador</label>
-            <input id="operador" placeholder="Oficial de Guardia" />
-          </div>
-        </div>
-        <div class="row" style="margin-top:8px">
-          <div>
-            <label>Cámara</label>
-            <select id="cams"></select>
-          </div>
-          <div class="flex" style="align-items:end">
-            <button id="start">Iniciar cámara</button>
-            <button id="stop">Detener</button>
-            <span id="camStatus" class="pill">Detenida</span>
-          </div>
-        </div>
-
-        <div id="qr-area" style="margin-top:12px">
-          <div id="reader" style="width:320px;max-width:100%"></div>
-        </div>
-
-        <div class="row" style="margin-top:10px">
-          <div>
-            <label>Entrada manual (RUN/Texto QR)</label>
-            <input id="manual" placeholder="Ej.: 12.345.678-9" />
-          </div>
-          <div class="flex" style="align-items:end">
-            <button id="btnManual">Registrar manual</button>
-            <span class="muted">Usar si el QR está dañado</span>
-          </div>
-        </div>
-
-        <div style="margin-top:8px" class="flex">
-          <button id="sync">Sincronizar pendientes</button>
-          <span id="net" class="pill">Estado: offline/online</span>
-          <small id="queuedInfo" class="muted"></small>
-        </div>
-      </section>
-
-      <!-- Aforo y registro reciente -->
-      <section class="card">
-        <div class="flex" style="justify-content:space-between;margin-bottom:8px">
-          <div><strong>Aforo actual (presentes)</strong></div>
-          <div class="muted" id="tz"></div>
-        </div>
-        <div class="aforoBox"><div class="aforoNum" id="aforo">—</div></div>
-        <div class="flex" style="margin:10px 0 4px 0">
-          <small class="muted">Se calcula según el <em>último pase</em> por RUN: Entrada=+1 / Salida=0.</small>
-        </div>
-        <div class="flex" style="justify-content:space-between;margin-top:8px">
-          <div class="muted">Endpoint: <code id="ep"></code></div>
-          <button id="refreshAforo" style="width:auto">Actualizar aforo</button>
-        </div>
-        <hr style="opacity:.2;margin:12px 0">
-        <div><strong>Registros recientes</strong></div>
-        <div id="last" class="log"></div>
-      </section>
-    </div>
-
-    <!-- Panel de configuración -->
-    <section class="card" style="margin-top:12px">
-      <h3>Configuración</h3>
-      <label>Endpoint:</label>
-      <input type="text" id="cfg-endpoint" placeholder="https://script.google.com/macros/s/XXXX/exec">
-      <label>Secreto:</label>
-      <input type="password" id="cfg-secret" placeholder="Tu clave secreta">
-      <div class="flex" style="margin-top:8px">
-        <button id="saveCfg" style="width:auto">Guardar configuración</button>
-      </div>
-    </section>
+  <div class="card">
+    <h2>Registro de asistencia</h2>
+    <div id="reader" style="width:500px;margin:auto;"></div>
+    <p id="result"></p>
+    <h3 id="contador"></h3>
   </div>
 
   <script>
-    // ====== CONFIGURACIÓN DINÁMICA (desde localStorage) ======
-    const LS_EP = "asistencia_endpoint";
-    const LS_SC = "asistencia_secret";
-    let ENDPOINT = localStorage.getItem(LS_EP) || "";
-    let SECRET   = localStorage.getItem(LS_SC) || "";
-    const ESTADO_LOCAL_KEY = "asist_queue_v1";
-    const DUP_WINDOW_MS = 8000;
-    // =========================================================
+    // 👉 CAMBIA ESTE LINK POR EL DE TU APP SCRIPT
+    const API_URL = "https://script.google.com/macros/s/AKfycbwAa7ibhxR3f7f99QRruZICTb1c20t_1N1xQfHv8fFY6Jj-CaMAgufBHJdSB2DyUnEj/exec";
 
-    // Mostrar zona horaria y endpoint
-    document.getElementById("tz").textContent = `Horario del dispositivo: ${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
-    document.getElementById("ep").textContent = ENDPOINT || "(sin configurar)";
+    // 🔹 Lista de bomberos (ejemplo, agrega los tuyos)
+    let registros = {};
+    let bomberos = {
+      "B001": { nombre:"Bryan Quezada", cargo:"Voluntario", cuartel:"Cuartel 1" },
+      "B002": { nombre:"Leonardo Frías", cargo:"Teniente Segundo", cuartel:"Cuartel 2" },
+      "B003": { nombre:"Diego Pérez", cargo:"Voluntario", cuartel:"Cuartel 3" }
+    };
 
-    // Rellenar panel de configuración
-    document.getElementById("cfg-endpoint").value = ENDPOINT;
-    document.getElementById("cfg-secret").value   = SECRET;
-
-    // Guardar config
-    document.getElementById("saveCfg").addEventListener("click", () => {
-      ENDPOINT = document.getElementById("cfg-endpoint").value.trim();
-      SECRET   = document.getElementById("cfg-secret").value.trim();
-      localStorage.setItem(LS_EP, ENDPOINT);
-      localStorage.setItem(LS_SC, SECRET);
-      document.getElementById("ep").textContent = ENDPOINT || "(sin configurar)";
-      alert("✅ Configuración guardada.");
-    });
-
-    const q = (s)=>document.querySelector(s);
-    const lastBox = q("#last");
-    const netPill = q("#net");
-    const camStatus = q("#camStatus");
-    const aforoNum = q("#aforo");
-    let lastScan = { text:null, at:0 };
-
-    // Cola offline
-    function getQueue(){ try{ return JSON.parse(localStorage.getItem(ESTADO_LOCAL_KEY) || "[]"); }catch(e){ return []; } }
-    function setQueue(arr){ localStorage.setItem(ESTADO_LOCAL_KEY, JSON.stringify(arr)); q("#queuedInfo").textContent = arr.length ? `Pendientes: ${arr.length}` : ""; }
-    setQueue(getQueue());
-
-    function logLine(msg, cls=""){ const p=document.createElement("div"); if(cls) p.className=cls; p.textContent=`[${new Date().toLocaleString()}] ${msg}`; lastBox.prepend(p); }
-
-    function updateNet(){ const online=navigator.onLine; netPill.textContent="Estado: "+(online?"online":"offline"); netPill.style.background=online?"#0d3a1f":"#3a0d0d"; }
-    window.addEventListener("online", updateNet); window.addEventListener("offline", updateNet); updateNet();
-
-    // === Aforo ===
-    async function updateAforo(){
-      if(!ENDPOINT){ aforoNum.textContent="—"; return; }
-      const evento = encodeURIComponent(q("#evento").value.trim());
-      const estacion = encodeURIComponent(q("#estacion").value.trim());
-      const url = `${ENDPOINT}?secret=${encodeURIComponent(SECRET)}&evento=${evento}&estacion=${estacion}&fmt=json`;
-      try{ const res=await fetch(url); const data=await res.json(); aforoNum.textContent=(typeof data.presentes==="number")?data.presentes:"—"; }
-      catch(e){ aforoNum.textContent = "—"; }
-    }
-    q("#refreshAforo").addEventListener("click", updateAforo);
-    setInterval(updateAforo, 15000);
-
-    async function enviarRegistro(runText){
-      const payload = {
-        secret: SECRET,
-        run: (runText || "").trim(),
-        evento: q("#evento").value.trim() || "Guardia",
-        tipo: q("#tipo").value,
-        operador: q("#operador").value.trim() || "Oficial",
-        estacion: q("#estacion").value.trim() || "Cuartel",
-        userAgent: navigator.userAgent,
-      };
-      if(!payload.run){ logLine("RUN vacío ignorado","warn"); return; }
-
-      const now=Date.now();
-      if(lastScan.text===payload.run && (now-lastScan.at)<DUP_WINDOW_MS){ logLine("Lectura duplicada ignorada","warn"); return; }
-      lastScan={ text:payload.run, at:now };
-
-      if(!ENDPOINT){
-        const qArr=getQueue(); qArr.push({ ts:new Date().toISOString(), ...payload }); setQueue(qArr);
-        logLine("Guardado local (configura ENDPOINT).","warn"); return;
-      }
-
-      try{
-        const res=await fetch(ENDPOINT,{ method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload) });
-        const txt=await res.text();
-        if(res.ok && txt.toLowerCase().includes("guardado")){ logLine(`OK ${payload.tipo} — ${payload.run}`,"ok"); updateAforo(); }
-        else{ const qArr=getQueue(); qArr.push({ ts:new Date().toISOString(), ...payload }); setQueue(qArr); logLine(`Servidor no confirmó. Guardado local. Resp: ${txt}`,"warn"); }
-      }catch(err){
-        const qArr=getQueue(); qArr.push({ ts:new Date().toISOString(), ...payload }); setQueue(qArr);
-        logLine("Sin conexión. Guardado local.","warn");
-      }
+    function hablar(texto){
+      let voz = new SpeechSynthesisUtterance(texto);
+      voz.lang = "es-CL";
+      speechSynthesis.speak(voz);
     }
 
-    async function syncQueue(){
-      const arr=getQueue();
-      if(!arr.length){ logLine("No hay pendientes para sincronizar."); return; }
-      if(!ENDPOINT){ logLine("Configura ENDPOINT antes de sincronizar.","bad"); return; }
-      const remaining=[];
-      for(const item of arr){
-        try{
-          const res=await fetch(ENDPOINT,{ method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(item) });
-          const txt=await res.text();
-          if(!(res.ok && txt.toLowerCase().includes("guardado"))){ remaining.push(item); }
-          else{ logLine(`Sincronizado: ${item.run}`,"ok"); }
-        }catch(e){ remaining.push(item); }
-      }
-      setQueue(remaining);
-      if(!remaining.length){ logLine("¡Sincronización completa!","ok"); updateAforo(); }
+    function actualizarContador(){
+      let cuartel1 = Object.values(registros).filter(r => r.estado==="dentro" && r.cuartel==="Cuartel 1").length;
+      let cuartel2 = Object.values(registros).filter(r => r.estado==="dentro" && r.cuartel==="Cuartel 2").length;
+      let cuartel3 = Object.values(registros).filter(r => r.estado==="dentro" && r.cuartel==="Cuartel 3").length;
+      let total = cuartel1 + cuartel2 + cuartel3;
+
+      document.getElementById("contador").innerHTML = `
+        🚒 Cuartel 1: ${cuartel1}<br>
+        🚒 Cuartel 2: ${cuartel2}<br>
+        🚒 Cuartel 3: ${cuartel3}<br>
+        🔥 Total en planta: ${total}
+      `;
     }
-    q("#sync").addEventListener("click", syncQueue);
 
-    q("#btnManual").addEventListener("click", ()=>{ const t=q("#manual").value.trim(); if(t){ enviarRegistro(t); q("#manual").value=""; } });
+    function guardarEnSheets(id, nombre, cargo, cuartel, accion) {
+      let url = `${API_URL}?id=${encodeURIComponent(id)}&nombre=${encodeURIComponent(nombre)}&cargo=${encodeURIComponent(cargo)}&cuartel=${encodeURIComponent(cuartel)}&accion=${encodeURIComponent(accion)}`;
+      fetch(url).then(r => r.text()).then(data => console.log("Guardado en Sheets:", data))
+               .catch(err => console.error("Error:", err));
+    }
 
-    // Cámara
-    const html5QrCode = new Html5Qrcode("reader");
-    const camsSel = q("#cams"); let currentCamId=null;
+    function onScanSuccess(decodedText) {
+      let id = decodedText;
+      let bombero = bomberos[id];
+      if (!bombero) {
+        document.getElementById("result").innerText = "QR no válido";
+        return;
+      }
 
-    Html5Qrcode.getCameras().then(devices=>{
-      camsSel.innerHTML=""; devices.forEach((d,i)=>{ const o=document.createElement("option"); o.value=d.id; o.textContent=d.label||`Cámara ${i+1}`; camsSel.appendChild(o); });
-      if(devices[0]) currentCamId = devices[0].id;
-      camsSel.addEventListener("change", e=> currentCamId=e.target.value);
-    }).catch(()=>{ camsSel.innerHTML="<option>(No hay cámaras)</option>"; });
+      let accion;
+      if (!registros[id] || registros[id].estado === "fuera") {
+        registros[id] = {estado: "dentro", entrada: new Date(), cuartel: bombero.cuartel};
+        accion = "Entrada";
+        hablar("Bienvenido " + bombero.cargo + " " + bombero.nombre + " al " + bombero.cuartel);
+      } else {
+        registros[id] = {estado: "fuera", salida: new Date(), cuartel: bombero.cuartel};
+        accion = "Salida";
+        hablar("Adiós " + bombero.cargo + " " + bombero.nombre + " del " + bombero.cuartel);
+      }
 
-    q("#start").addEventListener("click", ()=>{
-      if(!currentCamId){ alert("No hay cámara disponible o permisos bloqueados."); return; }
-      html5QrCode.start(currentCamId,{ fps:10, qrbox:250 }, (decodedText)=> enviarRegistro(decodedText), ()=>{})
-        .then(()=>{ camStatus.textContent="En ejecución"; updateAforo(); })
-        .catch(()=>{ camStatus.textContent="Error cámara"; });
-    });
+      document.getElementById("result").innerText = `${bombero.nombre} (${bombero.cuartel}) - ${accion} a las ${new Date().toLocaleTimeString()}`;
+      actualizarContador();
+      guardarEnSheets(id, bombero.nombre, bombero.cargo, bombero.cuartel, accion);
+    }
 
-    q("#stop").addEventListener("click", ()=>{
-      html5QrCode.stop().then(()=>{ camStatus.textContent="Detenida"; })
-        .catch(()=>{ camStatus.textContent="Error al detener"; });
-    });
+    new Html5QrcodeScanner("reader", { fps: 10, qrbox: 300 })
+      .render(onScanSuccess);
   </script>
 </body>
 </html>
+
