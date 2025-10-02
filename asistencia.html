@@ -20,10 +20,13 @@
   </div>
 
   <script>
-    // 👉 CAMBIA ESTE LINK POR EL DE TU APP SCRIPT
-    const API_URL = "https://script.google.com/macros/s/AKfycbwAa7ibhxR3f7f99QRruZICTb1c20t_1N1xQfHv8fFY6Jj-CaMAgufBHJdSB2DyUnEj/exec";
+    // 👉 Pega aquí tu URL del Apps Script (termina en /exec)
+    const API_URL = "https://script.google.com/macros/s/TU_ID/exec";
 
-    // 🔹 Lista de bomberos (ejemplo, agrega los tuyos)
+    // Configuración
+    const COOLDOWN_MS = 1800; // tiempo en milisegundos para reactivar la cámara
+
+    // Datos de ejemplo (puedes ampliar con todos tus bomberos)
     let registros = {};
     let bomberos = {
       "B001": { nombre:"Bryan Quezada", cargo:"Voluntario", cuartel:"Cuartel 1" },
@@ -31,60 +34,73 @@
       "B003": { nombre:"Diego Pérez", cargo:"Voluntario", cuartel:"Cuartel 3" }
     };
 
+    // Variable global para manejar el lector
+    let scanner = null;
+
     function hablar(texto){
-      let voz = new SpeechSynthesisUtterance(texto);
+      const voz = new SpeechSynthesisUtterance(texto);
       voz.lang = "es-CL";
       speechSynthesis.speak(voz);
     }
 
     function actualizarContador(){
-      let cuartel1 = Object.values(registros).filter(r => r.estado==="dentro" && r.cuartel==="Cuartel 1").length;
-      let cuartel2 = Object.values(registros).filter(r => r.estado==="dentro" && r.cuartel==="Cuartel 2").length;
-      let cuartel3 = Object.values(registros).filter(r => r.estado==="dentro" && r.cuartel==="Cuartel 3").length;
-      let total = cuartel1 + cuartel2 + cuartel3;
-
-      document.getElementById("contador").innerHTML = `
-        🚒 Cuartel 1: ${cuartel1}<br>
-        🚒 Cuartel 2: ${cuartel2}<br>
-        🚒 Cuartel 3: ${cuartel3}<br>
-        🔥 Total en planta: ${total}
-      `;
+      const c = { "Cuartel 1":0, "Cuartel 2":0, "Cuartel 3":0 };
+      Object.values(registros).forEach(r => {
+        if (r.estado === "dentro") c[r.cuartel] = (c[r.cuartel]||0)+1;
+      });
+      const total = (c["Cuartel 1"]||0)+(c["Cuartel 2"]||0)+(c["Cuartel 3"]||0);
+      document.getElementById("contador").innerHTML =
+        `🚒 Cuartel 1: ${c["Cuartel 1"]||0}<br>`+
+        `🚒 Cuartel 2: ${c["Cuartel 2"]||0}<br>`+
+        `🚒 Cuartel 3: ${c["Cuartel 3"]||0}<br>`+
+        `🔥 Total en planta: ${total}`;
     }
 
     function guardarEnSheets(id, nombre, cargo, cuartel, accion) {
-      let url = `${API_URL}?id=${encodeURIComponent(id)}&nombre=${encodeURIComponent(nombre)}&cargo=${encodeURIComponent(cargo)}&cuartel=${encodeURIComponent(cuartel)}&accion=${encodeURIComponent(accion)}`;
-      fetch(url).then(r => r.text()).then(data => console.log("Guardado en Sheets:", data))
-               .catch(err => console.error("Error:", err));
+      const url = `${API_URL}?id=${encodeURIComponent(id)}&nombre=${encodeURIComponent(nombre)}&cargo=${encodeURIComponent(cargo)}&cuartel=${encodeURIComponent(cuartel)}&accion=${encodeURIComponent(accion)}`;
+      fetch(url).then(r => r.text()).then(t => console.log("Sheets:", t)).catch(console.error);
     }
 
-    function onScanSuccess(decodedText) {
-      console.log("QR detectado:", decodedText);
-      let id = decodedText.trim();
-      let bombero = bomberos[id];
+    // ✅ Procesar escaneo y pausar la cámara durante COOLDOWN_MS
+    async function onScanSuccess(decodedText) {
+      const id = decodedText.trim();
+      console.log("QR detectado:", id);
+
+      // Pausar lector inmediatamente
+      try { await scanner.clear(); } catch(e){ console.warn("clear error", e); }
+
+      const bombero = bomberos[id];
       if (!bombero) {
         document.getElementById("result").innerText = "QR no válido";
+        setTimeout(() => scanner.render(onScanSuccess), COOLDOWN_MS);
         return;
       }
 
       let accion;
       if (!registros[id] || registros[id].estado === "fuera") {
-        registros[id] = {estado: "dentro", entrada: new Date(), cuartel: bombero.cuartel};
+        registros[id] = { estado:"dentro", entrada:new Date(), cuartel:bombero.cuartel };
         accion = "Entrada";
-        hablar("Bienvenido " + bombero.cargo + " " + bombero.nombre + " al " + bombero.cuartel);
+        hablar(`Bienvenido ${bombero.cargo} ${bombero.nombre} al ${bombero.cuartel}`);
       } else {
-        registros[id] = {estado: "fuera", salida: new Date(), cuartel: bombero.cuartel};
+        registros[id] = { estado:"fuera", salida:new Date(), cuartel:bombero.cuartel };
         accion = "Salida";
-        hablar("Adiós " + bombero.cargo + " " + bombero.nombre + " del " + bombero.cuartel);
+        hablar(`Adiós ${bombero.cargo} ${bombero.nombre} del ${bombero.cuartel}`);
       }
 
-      document.getElementById("result").innerText = `${bombero.nombre} (${bombero.cuartel}) - ${accion} a las ${new Date().toLocaleTimeString()}`;
+      document.getElementById("result").innerText =
+        `${bombero.nombre} (${bombero.cuartel}) - ${accion} a las ${new Date().toLocaleTimeString()}`;
       actualizarContador();
       guardarEnSheets(id, bombero.nombre, bombero.cargo, bombero.cuartel, accion);
+
+      // Reactivar cámara después de la pausa
+      setTimeout(() => scanner.render(onScanSuccess), COOLDOWN_MS);
     }
 
-    new Html5QrcodeScanner("reader", { fps: 10, qrbox: 300 })
-      .render(onScanSuccess);
+    // Iniciar lector al cargar la página
+    window.addEventListener("load", () => {
+      scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 300 });
+      scanner.render(onScanSuccess);
+    });
   </script>
 </body>
 </html>
-
