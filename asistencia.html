@@ -58,7 +58,7 @@
     }
 
     function onScanSuccess(decodedText) {
-      let id = decodedText;
+      let id = decodedText.trim();
       let bombero = bomberos[id];
       if (!bombero) {
         document.getElementById("result").innerText = "QR no válido";
