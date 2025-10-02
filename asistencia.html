@@ -24,9 +24,9 @@
     const API_URL = "https://script.google.com/macros/s/AKfycbwAa7ibhxR3f7f99QRruZICTb1c20t_1N1xQfHv8fFY6Jj-CaMAgufBHJdSB2DyUnEj/exec";
 
     // Configuración
-    const COOLDOWN_MS = 2000; // 2 segundos de espera entre lecturas del mismo QR
+    const COOLDOWN_MS = 3000; // 2 segundos de espera entre lecturas del mismo QR
     let lastScanId = null;
-    let lastScanTime = 2000;
+    let lastScanTime = 0;
 
     // Datos de ejemplo (agrega todos tus bomberos aquí)
     let registros = {};
