@@ -58,6 +58,7 @@
     }
 
     function onScanSuccess(decodedText) {
+      console.log("QR detectado:", decodedText);
       let id = decodedText.trim();
       let bombero = bomberos[id];
       if (!bombero) {
