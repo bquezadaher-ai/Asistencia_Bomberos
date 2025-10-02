@@ -24,18 +24,17 @@
     const API_URL = "https://script.google.com/macros/s/TU_ID/exec";
 
     // Configuración
-    const COOLDOWN_MS = 1800; // tiempo en milisegundos para reactivar la cámara
+    const COOLDOWN_MS = 2000; // 2 segundos de espera entre lecturas del mismo QR
+    let lastScanId = null;
+    let lastScanTime = 0;
 
-    // Datos de ejemplo (puedes ampliar con todos tus bomberos)
+    // Datos de ejemplo (agrega todos tus bomberos aquí)
     let registros = {};
     let bomberos = {
       "B001": { nombre:"Bryan Quezada", cargo:"Voluntario", cuartel:"Cuartel 1" },
       "B002": { nombre:"Leonardo Frías", cargo:"Teniente Segundo", cuartel:"Cuartel 2" },
       "B003": { nombre:"Diego Pérez", cargo:"Voluntario", cuartel:"Cuartel 3" }
     };
-
-    // Variable global para manejar el lector
-    let scanner = null;
 
     function hablar(texto){
       const voz = new SpeechSynthesisUtterance(texto);
@@ -61,18 +60,24 @@
       fetch(url).then(r => r.text()).then(t => console.log("Sheets:", t)).catch(console.error);
     }
 
-    // ✅ Procesar escaneo y pausar la cámara durante COOLDOWN_MS
-    async function onScanSuccess(decodedText) {
+    // ✅ Cámara siempre activa, con filtro anti-duplicados
+    function onScanSuccess(decodedText) {
+      const now = Date.now();
       const id = decodedText.trim();
-      console.log("QR detectado:", id);
 
-      // Pausar lector inmediatamente
-      try { await scanner.clear(); } catch(e){ console.warn("clear error", e); }
+      // Si es el mismo código en menos del cooldown → ignorar
+      if (id === lastScanId && (now - lastScanTime) < COOLDOWN_MS) {
+        return;
+      }
+
+      lastScanId = id;
+      lastScanTime = now;
+
+      console.log("QR detectado:", id);
 
       const bombero = bomberos[id];
       if (!bombero) {
         document.getElementById("result").innerText = "QR no válido";
-        setTimeout(() => scanner.render(onScanSuccess), COOLDOWN_MS);
         return;
       }
 
@@ -91,15 +96,11 @@
         `${bombero.nombre} (${bombero.cuartel}) - ${accion} a las ${new Date().toLocaleTimeString()}`;
       actualizarContador();
       guardarEnSheets(id, bombero.nombre, bombero.cargo, bombero.cuartel, accion);
-
-      // Reactivar cámara después de la pausa
-      setTimeout(() => scanner.render(onScanSuccess), COOLDOWN_MS);
     }
 
-    // Iniciar lector al cargar la página
+    // Iniciar lector (la cámara no se apaga nunca)
     window.addEventListener("load", () => {
-      scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 300 });
-      scanner.render(onScanSuccess);
+      new Html5QrcodeScanner("reader", { fps: 10, qrbox: 300 }).render(onScanSuccess);
     });
   </script>
 </body>
