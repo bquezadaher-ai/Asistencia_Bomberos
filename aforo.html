@@ -87,7 +87,10 @@
       el.led.classList.remove('bad'); el.led.classList.add('ok');
 
       const res = await fetch(API_URL, { cache: "no-store" });
-      const data = await res.json();
+const text = await res.text();
+console.log("Respuesta cruda:", text); // debug
+const data = JSON.parse(text);
+
 
       const c1 = (data.counts && data.counts["Cuartel 1"]) || 0;
       const c2 = (data.counts && data.counts["Cuartel 2"]) || 0;
