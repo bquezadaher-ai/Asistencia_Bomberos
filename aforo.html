@@ -1,1 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aforo por Cuartel – Bomberos</title>
+<style>
+  :root{
+    --bg:#0b1020; --card:#111735; --ink:#e9ecff; --muted:#9aa3c7; --accent:#36d399;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:linear-gradient(120deg,#0b1020,#0e1430); color:var(--ink);}
+  .wrap{max-width:1000px; margin:40px auto; padding:0 16px;}
+  h1{font-size:clamp(22px,3.5vw,34px); margin:0 0 8px}
+  .sub{color:var(--muted); margin:0 0 24px}
+  .grid{display:grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap:16px;}
+  .card{background:var(--card); border-radius:16px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,.25);}
+  .label{color:var(--muted); font-size:14px; margin-bottom:6px}
+  .value{font-size:54px; font-weight:800; line-height:1; margin-bottom:6px}
+  .name{font-size:16px; opacity:.9}
+  .ok{color:var(--accent)}
+  .footer{margin-top:18px; color:var(--muted); font-size:14px}
+  .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:10px 0 20px}
+  button{background:var(--accent); color:#0b1020; border:none; padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer}
+  .led{width:10px; height:10px; border-radius:999px; background:#555}
+  .led.ok{background:#36d399}
+  .led.bad{background:#ef4444}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Aforo en tiempo real</h1>
+    <p class="sub">Conteo de voluntarios dentro de cada cuartel (actualiza automático).</p>
 
+    <div class="row">
+      <button id="refreshBtn">Actualizar ahora</button>
+      <span id="status" class="sub">Esperando datos…</span>
+      <span id="led" class="led"></span>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="label">Cuartel 1</div>
+        <div id="c1" class="value">0</div>
+        <div class="name">Voluntarios dentro</div>
+      </div>
+      <div class="card">
+        <div class="label">Cuartel 2</div>
+        <div id="c2" class="value">0</div>
+        <div class="name">Voluntarios dentro</div>
+      </div>
+      <div class="card">
+        <div class="label">Cuartel 3</div>
+        <div id="c3" class="value">0</div>
+        <div class="name">Voluntarios dentro</div>
+      </div>
+      <div class="card">
+        <div class="label">Total en planta</div>
+        <div id="tot" class="value ok">0</div>
+        <div class="name">Suma de los 3 cuarteles</div>
+      </div>
+    </div>
+
+    <div class="footer" id="updated">Actualizado: —</div>
+  </div>
+
+<script>
+  // 👉 Pega aquí TU URL del Apps Script (la misma del index), termina en /exec
+  const API_URL = "https://script.google.com/macros/s/AKfycbzo_AaESTkdaXWmpeIs3tNLAV5XNJ2rDjP6z2xw_zkZ6HaAWYQ2tVvVAEcQz4_kMKzZ/exec";
+  const REFRESH_MS = 5000; // cada 5s
+
+  const el = {
+    c1: document.getElementById('c1'),
+    c2: document.getElementById('c2'),
+    c3: document.getElementById('c3'),
+    tot: document.getElementById('tot'),
+    status: document.getElementById('status'),
+    updated: document.getElementById('updated'),
+    led: document.getElementById('led'),
+    btn: document.getElementById('refreshBtn'),
+  };
+
+  async function loadAforo(){
+    try{
+      el.status.textContent = "Actualizando…";
+      el.led.classList.remove('bad'); el.led.classList.add('ok');
+
+      const res = await fetch(API_URL, { cache: "no-store" });
+      const data = await res.json();
+
+      const c1 = (data.counts && data.counts["Cuartel 1"]) || 0;
+      const c2 = (data.counts && data.counts["Cuartel 2"]) || 0;
+      const c3 = (data.counts && data.counts["Cuartel 3"]) || 0;
+      const tot = data.total || (c1+c2+c3);
+
+      el.c1.textContent = c1;
+      el.c2.textContent = c2;
+      el.c3.textContent = c3;
+      el.tot.textContent = tot;
+
+      el.updated.textContent = "Actualizado: " + (data.updated || new Date().toLocaleString("es-CL"));
+      el.status.textContent = "OK";
+    } catch (e){
+      console.error(e);
+      el.status.textContent = "Error al actualizar";
+      el.led.classList.remove('ok'); el.led.classList.add('bad');
+    }
+  }
+
+  el.btn.addEventListener('click', loadAforo);
+  loadAforo();
+  setInterval(loadAforo, REFRESH_MS);
+</script>
+</body>
+</html>
