@@ -1,40 +1,37 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Asistencia Bomberos</title>
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/minified/html5-qrcode.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; background:#0b1020; color:#e9ecff; text-align:center; }
     .card { background:#111735; padding:20px; margin:20px auto; border-radius:12px; max-width:700px; }
     h2 { color:#36d399; }
+    .muted{ color:#9aa3c7; font-size:14px; }
   </style>
 </head>
 <body>
   <div class="card">
     <h2>Registro de asistencia</h2>
-    <div id="reader" style="width:500px;margin:auto;"></div>
+    <div class="muted" id="status">Cargando listado de bomberos…</div>
+    <div id="reader" style="width:500px;margin:16px auto;"></div>
     <p id="result"></p>
     <h3 id="contador"></h3>
   </div>
 
   <script>
-    // 👉 Pega aquí tu URL del Apps Script (termina en /exec)
-    const API_URL = "https://script.google.com/macros/s/AKfycbzo_AaESTkdaXWmpeIs3tNLAV5XNJ2rDjP6z2xw_zkZ6HaAWYQ2tVvVAEcQz4_kMKzZ/exec";
+    // 👉 Pega AQUÍ tu URL de Apps Script (termina en /exec)
+    const BASE_URL = "https://script.google.com/macros/s/AKfycbyQ-DAszNtlH-jEwzcJpKBqr_S2Ne-anWpHVmgz9dqpEleHmLproLJeYEGU6XGkZunK/exec";
 
-    // Configuración
-    const COOLDOWN_MS = 3000; // 2 segundos de espera entre lecturas del mismo QR
-    let lastScanId = null;
-    let lastScanTime = 0;
+    // Config
+    const COOLDOWN_MS = 2000;
+    let lastScanId = null, lastScanTime = 0;
 
-    // Datos de ejemplo (agrega todos tus bomberos aquí)
+    // Estado
     let registros = {};
-    let bomberos = {
-      "B001": { nombre:"Bryan Quezada", cargo:"Voluntario", cuartel:"Cuartel 1" },
-      "B002": { nombre:"Leonardo Frías", cargo:"Teniente Segundo", cuartel:"Cuartel 2" },
-      "B003": { nombre:"Diego Pérez", cargo:"Voluntario", cuartel:"Cuartel 3" }
-    };
+    let bomberos = {}; // lo cargamos desde Sheets
 
     function hablar(texto){
       const voz = new SpeechSynthesisUtterance(texto);
@@ -44,9 +41,7 @@
 
     function actualizarContador(){
       const c = { "Cuartel 1":0, "Cuartel 2":0, "Cuartel 3":0 };
-      Object.values(registros).forEach(r => {
-        if (r.estado === "dentro") c[r.cuartel] = (c[r.cuartel]||0)+1;
-      });
+      Object.values(registros).forEach(r => { if (r.estado==="dentro") c[r.cuartel] = (c[r.cuartel]||0)+1; });
       const total = (c["Cuartel 1"]||0)+(c["Cuartel 2"]||0)+(c["Cuartel 3"]||0);
       document.getElementById("contador").innerHTML =
         `🚒 Cuartel 1: ${c["Cuartel 1"]||0}<br>`+
@@ -56,52 +51,74 @@
     }
 
     function guardarEnSheets(id, nombre, cargo, cuartel, accion) {
-      const url = `${API_URL}?id=${encodeURIComponent(id)}&nombre=${encodeURIComponent(nombre)}&cargo=${encodeURIComponent(cargo)}&cuartel=${encodeURIComponent(cuartel)}&accion=${encodeURIComponent(accion)}`;
+      const url = `${BASE_URL}?id=${encodeURIComponent(id)}&nombre=${encodeURIComponent(nombre)}&cargo=${encodeURIComponent(cargo)}&cuartel=${encodeURIComponent(cuartel)}&accion=${encodeURIComponent(accion)}`;
       fetch(url).then(r => r.text()).then(t => console.log("Sheets:", t)).catch(console.error);
     }
 
-    // ✅ Cámara siempre activa, con filtro anti-duplicados
+    function fraseBienvenida(b){
+      // Si en la hoja hay frase personalizada, úsala
+      if (b.bienvenida && b.bienvenida.trim()!=="") return b.bienvenida;
+      // Si no, frase por defecto
+      return `Bienvenido ${b.cargo} ${b.nombre} al ${b.cuartel}`;
+    }
+    function fraseDespedida(b){
+      if (b.despedida && b.despedida.trim()!=="") return b.despedida;
+      return `Adiós ${b.cargo} ${b.nombre} del ${b.cuartel}`;
+    }
+
+    // Cámara activa + filtro anti-duplicados
     function onScanSuccess(decodedText) {
       const now = Date.now();
       const id = decodedText.trim();
+      if (id === lastScanId && (now - lastScanTime) < COOLDOWN_MS) return;
+      lastScanId = id; lastScanTime = now;
 
-      // Si es el mismo código en menos del cooldown → ignorar
-      if (id === lastScanId && (now - lastScanTime) < COOLDOWN_MS) {
-        return;
-      }
-
-      lastScanId = id;
-      lastScanTime = now;
-
-      console.log("QR detectado:", id);
-
-      const bombero = bomberos[id];
-      if (!bombero) {
+      const b = bomberos[id];
+      if (!b) {
         document.getElementById("result").innerText = "QR no válido";
         return;
       }
 
       let accion;
       if (!registros[id] || registros[id].estado === "fuera") {
-        registros[id] = { estado:"dentro", entrada:new Date(), cuartel:bombero.cuartel };
+        registros[id] = { estado:"dentro", entrada:new Date(), cuartel:b.cuartel };
         accion = "Entrada";
-        hablar(`Bienvenido ${bombero.cargo} ${bombero.nombre} al ${bombero.cuartel}`);
+        hablar(fraseBienvenida(b));
       } else {
-        registros[id] = { estado:"fuera", salida:new Date(), cuartel:bombero.cuartel };
+        registros[id] = { estado:"fuera", salida:new Date(), cuartel:b.cuartel };
         accion = "Salida";
-        hablar(`Adiós ${bombero.cargo} ${bombero.nombre} del ${bombero.cuartel}`);
+        hablar(fraseDespedida(b));
       }
 
       document.getElementById("result").innerText =
-        `${bombero.nombre} (${bombero.cuartel}) - ${accion} a las ${new Date().toLocaleTimeString()}`;
+        `${b.nombre} (${b.cuartel}) - ${accion} a las ${new Date().toLocaleTimeString()}`;
       actualizarContador();
-      guardarEnSheets(id, bombero.nombre, bombero.cargo, bombero.cuartel, accion);
+      guardarEnSheets(id, b.nombre, b.cargo, b.cuartel, accion);
     }
 
-    // Iniciar lector (la cámara no se apaga nunca)
-    window.addEventListener("load", () => {
-      new Html5QrcodeScanner("reader", { fps: 10, qrbox: 300 }).render(onScanSuccess);
-    });
+    // Carga el maestro de bomberos desde la hoja (op=bomberos)
+    async function cargarBomberos(){
+      const status = document.getElementById("status");
+      status.textContent = "Cargando listado de bomberos…";
+      try {
+        // Leemos como texto y parseamos, por si GAS sirve text/plain
+        const res = await fetch(`${BASE_URL}?op=bomberos`, { cache: "no-store" });
+        const txt = await res.text();
+        console.log("Bomberos (raw):", txt);
+        bomberos = JSON.parse(txt); // objeto: { "B001": {nombre, cargo, cuartel, ...}, ... }
+
+        const cantidad = Object.keys(bomberos).length;
+        status.textContent = `Listado cargado: ${cantidad} bomberos. Escanee un QR.`;
+
+        // Iniciar el lector SOLO cuando ya cargamos el maestro
+        new Html5QrcodeScanner("reader", { fps: 10, qrbox: 300 }).render(onScanSuccess);
+      } catch (e) {
+        console.error(e);
+        status.textContent = "Error cargando el listado. Revise la URL del Apps Script.";
+      }
+    }
+
+    window.addEventListener("load", cargarBomberos);
   </script>
 </body>
 </html>
