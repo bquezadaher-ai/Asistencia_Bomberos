@@ -66,8 +66,8 @@
   </div>
 
 <script>
-  // 👉 Pega aquí TU URL del Apps Script (la misma del index), termina en /exec
-  const API_URL ="https://script.google.com/macros/s/AKfycbzo_AaESTkdaXWmpeIs3tNLAV5XNJ2rDjP6z2xw_zkZ6HaAWYQ2tVvVAEcQz4_kMKzZ/exec?op=aforo";
+  // 👉 Tu URL de Apps Script
+  const API_URL ="https://script.google.com/macros/s/AKfycbxnQEsOusXK6bIY7o_rvnoE6DvR0AnLSew7-3EynKqNha77gh3e6YTjeL1MapOxuk8/exec?op=aforo";
   const REFRESH_MS = 5000; // cada 5s
 
   const el = {
@@ -86,11 +86,12 @@
       el.status.textContent = "Actualizando…";
       el.led.classList.remove('bad'); el.led.classList.add('ok');
 
-      const res = await fetch(API_URL, { cache: "no-store" });
-const text = await res.text();
-console.log("Respuesta cruda:", text); // debug
-const data = JSON.parse(text);
-
+      // 👇 Anti-caché: agrega timestamp al request
+      const url = API_URL + (API_URL.includes('?') ? '&' : '?') + '_=' + Date.now();
+      const res = await fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache" }});
+      const text = await res.text();
+      console.log("Respuesta cruda:", text); // debug
+      const data = JSON.parse(text);
 
       const c1 = (data.counts && data.counts["Cuartel 1"]) || 0;
       const c2 = (data.counts && data.counts["Cuartel 2"]) || 0;
@@ -115,5 +116,6 @@ const data = JSON.parse(text);
   loadAforo();
   setInterval(loadAforo, REFRESH_MS);
 </script>
+
 </body>
 </html>
