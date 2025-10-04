@@ -5,11 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aforo por Cuartel – Bomberos</title>
 <style>
-  :root{
-    --bg:#0b1020; --card:#111735; --ink:#e9ecff; --muted:#9aa3c7; --accent:#36d399;
-  }
+  :root{ --bg:#0b1020; --card:#111735; --ink:#e9ecff; --muted:#9aa3c7; --accent:#36d399; }
   *{box-sizing:border-box}
-  body{margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:linear-gradient(120deg,#0b1020,#0e1430); color:var(--ink);}
+  body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:linear-gradient(120deg,#0b1020,#0e1430); color:var(--ink);}
   .wrap{max-width:1000px; margin:40px auto; padding:0 16px;}
   h1{font-size:clamp(22px,3.5vw,34px); margin:0 0 8px}
   .sub{color:var(--muted); margin:0 0 24px}
@@ -65,9 +63,9 @@
   </div>
 
 <script>
-  // 👉 Pega aquí tu URL del Apps Script publicado como webapp (/exec)
-  const API_URL ="https://script.google.com/macros/s/AKfycbzo_AaESTkdaXWmpeIs3tNLAV5XNJ2rDjP6z2xw_zkZ6HaAWYQ2tVvVAEcQz4_kMKzZ/exec?op=aforo";
-  const REFRESH_MS = 5000; // cada 5 segundos
+  // 👉 Tu URL de Apps Script (web app /exec) sin callback; lo agregamos desde JS
+  const API_URL = "https://script.google.com/macros/s/AKfycbyhfzUa2rYVEiZACTowwuVI3SpBodKMy5TqW7Ve58_YV4r9GYxY8JJ4y9A9QBnjCUej/exec?op=aforo";
+  const REFRESH_MS = 5000;
 
   const el = {
     c1: document.getElementById('c1'),
@@ -80,18 +78,9 @@
     btn: document.getElementById('refreshBtn'),
   };
 
-  async function loadAforo(){
+  // Callback JSONP que llamará Apps Script: updateAforo({...})
+  function updateAforo(data){
     try{
-      el.status.textContent = "Actualizando…";
-      el.led.classList.remove('bad'); el.led.classList.add('ok');
-
-      // 👇 Anti-caché con timestamp
-      const url = API_URL + (API_URL.includes('?') ? '&' : '?') + '_=' + Date.now();
-      const res = await fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache" }});
-      const text = await res.text();
-      console.log("Respuesta cruda:", text); // debug
-      const data = JSON.parse(text);
-
       const c1 = (data.counts && data.counts["Cuartel 1"]) || 0;
       const c2 = (data.counts && data.counts["Cuartel 2"]) || 0;
       const c3 = (data.counts && data.counts["Cuartel 3"]) || 0;
@@ -104,11 +93,32 @@
 
       el.updated.textContent = "Actualizado: " + (data.updated || new Date().toLocaleString("es-CL"));
       el.status.textContent = "OK";
-    } catch (e){
-      console.error(e);
-      el.status.textContent = "Error al actualizar";
+      el.led.classList.remove('bad'); el.led.classList.add('ok');
+    }catch(err){
+      console.error(err);
+      el.status.textContent = "Error al procesar";
       el.led.classList.remove('ok'); el.led.classList.add('bad');
     }
+  }
+
+  // Carga JSONP agregando <script src="...&callback=updateAforo&_={timestamp}">
+  function loadAforo(){
+    el.status.textContent = "Actualizando…";
+    el.led.classList.remove('bad'); el.led.classList.add('ok');
+
+    // anti-caché con timestamp
+    const src = API_URL + (API_URL.includes('?') ? '&' : '?') + 'callback=updateAforo&_=' + Date.now();
+
+    const s = document.createElement('script');
+    s.src = src;
+    s.onerror = () => {
+      el.status.textContent = "Error al actualizar";
+      el.led.classList.remove('ok'); el.led.classList.add('bad');
+    };
+    document.body.appendChild(s);
+
+    // Limpieza del tag script (opcional)
+    setTimeout(() => { try{ s.remove(); }catch(_){} }, 10000);
   }
 
   el.btn.addEventListener('click', loadAforo);
