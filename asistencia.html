@@ -7,23 +7,42 @@
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/minified/html5-qrcode.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; background:#0b1020; color:#e9ecff; text-align:center; }
-    .card { background:#111735; padding:20px; margin:20px auto; border-radius:12px; max-width:700px; }
-    h2 { color:#36d399; }
+    .card { background:#111735; padding:20px; margin:20px auto; border-radius:12px; max-width:800px; }
+    h2 { color:#36d399; margin-bottom:10px; }
     .muted{ color:#9aa3c7; font-size:14px; }
+    .btns{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:12px 0 8px; }
+    .btn{ background:#1a234b; color:#e9ecff; border:1px solid #24306a; padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:700; }
+    .btn:hover{ background:#202b5a; }
+    .btn.active{ background:#36d399; color:#0b1020; border-color:#36d399; }
+    #reader{ width:500px; max-width:95vw; margin:16px auto; }
+    #result{ min-height:24px; }
   </style>
 </head>
 <body>
   <div class="card">
     <h2>Registro de asistencia</h2>
     <div class="muted" id="status">Cargando listado de bomberos…</div>
-    <div id="reader" style="width:500px;margin:16px auto;"></div>
+
+    <!-- Botones de MOTIVO -->
+    <div class="btns">
+      <button class="btn" data-motivo="Guardia">Guardia</button>
+      <button class="btn" data-motivo="Academia">Academia</button>
+      <button class="btn" data-motivo="Curso">Curso</button>
+      <button class="btn" data-motivo="Reunión">Reunión</button>
+      <button class="btn" data-motivo="Visita">Visita</button>
+    </div>
+    <div class="muted" id="motivoSel">Motivo seleccionado: <b>—</b></div>
+
+    <!-- Lector QR -->
+    <div id="reader"></div>
+
     <p id="result"></p>
     <h3 id="contador"></h3>
   </div>
 
   <script>
-    // 👉 Pega AQUÍ tu URL de Apps Script (termina en /exec)
-    const BASE_URL = "https://script.google.com/macros/s/AKfycbyQ-DAszNtlH-jEwzcJpKBqr_S2Ne-anWpHVmgz9dqpEleHmLproLJeYEGU6XGkZunK/exec";
+    // 👉 Tu URL del Apps Script (termina en /exec)
+    const BASE_URL = "https://script.google.com/macros/s/AKfycbwLpZpcNR1dt2K5CmwQK6BTwH3mfNUL6Wf61soZkhsbBZsTy3dDXmnFZKYtUqX5gO6h/exec";
 
     // Config
     const COOLDOWN_MS = 2000;
@@ -31,7 +50,21 @@
 
     // Estado
     let registros = {};
-    let bomberos = {}; // lo cargamos desde Sheets
+    let bomberos = {};          // se carga desde Sheets
+    let motivoSeleccionado = ""; // se elige con botones
+
+    // UI: manejo de botones de motivo
+    const btns = [];
+    document.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll(".btn[data-motivo]").forEach(b => {
+        btns.push(b);
+        b.addEventListener("click", () => {
+          motivoSeleccionado = b.dataset.motivo;
+          btns.forEach(x => x.classList.toggle("active", x === b));
+          document.getElementById("motivoSel").innerHTML = `Motivo seleccionado: <b>${motivoSeleccionado}</b>`;
+        });
+      });
+    });
 
     function hablar(texto){
       const voz = new SpeechSynthesisUtterance(texto);
@@ -50,26 +83,24 @@
         `🔥 Total en planta: ${total}`;
     }
 
-    function guardarEnSheets(id, nombre, cargo, cuartel, accion) {
-      const url = `${BASE_URL}?id=${encodeURIComponent(id)}&nombre=${encodeURIComponent(nombre)}&cargo=${encodeURIComponent(cargo)}&cuartel=${encodeURIComponent(cuartel)}&accion=${encodeURIComponent(accion)}`;
+    function guardarEnSheets(id, nombre, cargo, cuartel, accion, motivo) {
+      const url = `${BASE_URL}?id=${encodeURIComponent(id)}&nombre=${encodeURIComponent(nombre)}&cargo=${encodeURIComponent(cargo)}&cuartel=${encodeURIComponent(cuartel)}&accion=${encodeURIComponent(accion)}&motivo=${encodeURIComponent(motivo)}`;
       fetch(url).then(r => r.text()).then(t => console.log("Sheets:", t)).catch(console.error);
     }
 
-    function fraseBienvenida(b){
-      // Si en la hoja hay frase personalizada, úsala
-      if (b.bienvenida && b.bienvenida.trim()!=="") return b.bienvenida;
-      // Si no, frase por defecto
-      return `Bienvenido ${b.cargo} ${b.nombre} al ${b.cuartel}`;
-    }
-    function fraseDespedida(b){
-      if (b.despedida && b.despedida.trim()!=="") return b.despedida;
-      return `Adiós ${b.cargo} ${b.nombre} del ${b.cuartel}`;
-    }
+    function fraseBienvenida(b){ return b.bienvenida?.trim() ? b.bienvenida : `Bienvenido ${b.cargo} ${b.nombre} al ${b.cuartel}`; }
+    function fraseDespedida(b){  return b.despedida?.trim() ? b.despedida  : `Adiós ${b.cargo} ${b.nombre} del ${b.cuartel}`; }
 
     // Cámara activa + filtro anti-duplicados
     function onScanSuccess(decodedText) {
       const now = Date.now();
       const id = decodedText.trim();
+
+      if (!motivoSeleccionado) {
+        document.getElementById("result").innerText = "Selecciona un MOTIVO antes de escanear.";
+        return;
+      }
+
       if (id === lastScanId && (now - lastScanTime) < COOLDOWN_MS) return;
       lastScanId = id; lastScanTime = now;
 
@@ -91,30 +122,24 @@
       }
 
       document.getElementById("result").innerText =
-        `${b.nombre} (${b.cuartel}) - ${accion} a las ${new Date().toLocaleTimeString()}`;
+        `${b.nombre} (${b.cuartel}) - ${accion} (${motivoSeleccionado}) a las ${new Date().toLocaleTimeString()}`;
       actualizarContador();
-      guardarEnSheets(id, b.nombre, b.cargo, b.cuartel, accion);
+      guardarEnSheets(id, b.nombre, b.cargo, b.cuartel, accion, motivoSeleccionado);
     }
 
-    // Carga el maestro de bomberos desde la hoja (op=bomberos)
+    // Cargar maestro y luego iniciar lector
     async function cargarBomberos(){
       const status = document.getElementById("status");
-      status.textContent = "Cargando listado de bomberos…";
       try {
-        // Leemos como texto y parseamos, por si GAS sirve text/plain
+        status.textContent = "Cargando listado de bomberos…";
         const res = await fetch(`${BASE_URL}?op=bomberos`, { cache: "no-store" });
         const txt = await res.text();
-        console.log("Bomberos (raw):", txt);
-        bomberos = JSON.parse(txt); // objeto: { "B001": {nombre, cargo, cuartel, ...}, ... }
-
-        const cantidad = Object.keys(bomberos).length;
-        status.textContent = `Listado cargado: ${cantidad} bomberos. Escanee un QR.`;
-
-        // Iniciar el lector SOLO cuando ya cargamos el maestro
+        bomberos = JSON.parse(txt);
+        status.textContent = `Listado cargado: ${Object.keys(bomberos).length} bomberos. Selecciona un MOTIVO y escanea.`;
         new Html5QrcodeScanner("reader", { fps: 10, qrbox: 300 }).render(onScanSuccess);
       } catch (e) {
         console.error(e);
-        status.textContent = "Error cargando el listado. Revise la URL del Apps Script.";
+        status.textContent = "Error cargando el listado. Revisa la URL de Apps Script.";
       }
     }
 
