@@ -5,57 +5,38 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aforo por Cuartel – Bomberos</title>
 <style>
-  :root{
-    --bg:#0b1020; --card:#111735; --ink:#e9ecff; --muted:#9aa3c7; --accent:#36d399;
-  }
+  :root{ --bg:#0b1020; --card:#111735; --ink:#e9ecff; --muted:#9aa3c7; --accent:#36d399; }
   *{box-sizing:border-box}
-  body{
-    margin:0; 
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; 
-    background:linear-gradient(120deg,#0b1020,#0e1430); 
-    color:var(--ink);
-  }
-  .wrap{max-width:1000px; margin:40px auto; padding:0 16px;}
+  body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:linear-gradient(120deg,#0b1020,#0e1430); color:var(--ink);}
+  .wrap{max-width:1100px; margin:40px auto; padding:0 16px;}
   h1{font-size:clamp(22px,3.5vw,34px); margin:0 0 8px}
   .sub{color:var(--muted); margin:0 0 24px}
-  .grid{display:grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap:16px;}
-  .card{
-    background:var(--card); 
-    border-radius:16px; 
-    padding:20px; 
-    box-shadow:0 10px 30px rgba(0,0,0,.25);
-    text-align:center;
-  }
+  .grid{display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap:16px;}
+  .card{background:var(--card); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.25); text-align:center;}
   .label{color:var(--muted); font-size:14px; margin-bottom:6px}
-  .value{font-size:54px; font-weight:800; line-height:1; margin-bottom:6px}
-  .name{font-size:16px; opacity:.9}
+  .value{font-size:48px; font-weight:800; line-height:1; margin-bottom:6px}
+  .name{font-size:14px; opacity:.9}
   .ok{color:var(--accent)}
   .footer{margin-top:18px; color:var(--muted); font-size:14px}
   .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:10px 0 20px}
-  button{
-    background:var(--accent); color:#0b1020; border:none; 
-    padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer
-  }
+  button{background:var(--accent); color:#0b1020; border:none; padding:8px 12px; border-radius:10px; font-weight:700; cursor:pointer}
   .led{width:10px; height:10px; border-radius:999px; background:#555}
   .led.ok{background:#36d399}
   .led.bad{background:#ef4444}
 
-  /* 🔹 Ajuste de imágenes */
-  .logo-cuarto {
-    display:block;
-    margin:10px auto 16px;
-    width:80px;
-    height:80px;
-    object-fit:contain;
-    border-radius:0%;
-    box-shadow:0 0 10px rgba(0,0,0,0.3);
-  }
+  .logo-cuarto{ display:block; margin:10px auto 16px; max-width:90px; max-height:90px; width:auto; height:auto; object-fit:contain; border-radius:0; box-shadow:0 0 10px rgba(0,0,0,.3); }
+
+  .panel{ margin-top:12px; text-align:left; }
+  .panel label{ display:block; font-size:13px; color:var(--muted); margin:8px 0 4px; }
+  .panel select{ width:100%; padding:8px; border-radius:8px; border:1px solid #2a356a; background:#0f1633; color:var(--ink); }
+  .panel .multi{ height:90px; }
+  .small{ font-size:12px; color:var(--muted); margin-top:6px; }
 </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Aforo en tiempo real</h1>
-    <p class="sub">Conteo de voluntarios dentro de cada cuartel (actualiza automático).</p>
+    <p class="sub">Conteo por cuartel + estado operativo (cuartelero, conductor y unidades globales en planta).</p>
 
     <div class="row">
       <button id="refreshBtn">Actualizar ahora</button>
@@ -64,41 +45,86 @@
     </div>
 
     <div class="grid">
-      <div class="card">
+      <!-- Cuartel 1 -->
+      <div class="card" id="card-c1">
         <div class="label">Cuartel 1</div>
         <img src="img/logocuerpo.png" alt="Cuartel 1" class="logo-cuarto">
         <div id="c1" class="value">0</div>
-        <div class="name">Voluntarios dentro</div>
+        <div class="name">Personal en Guardia</div>
+
+        <div class="panel">
+          <label>Cuartelero en servicio</label>
+          <select id="cuartelero-1"></select>
+
+          <label>Conductor en servicio</label>
+          <select id="conductor-1"></select>
+
+          <label>Unidades presentes (multi)</label>
+          <select id="unidades-1" class="multi" multiple></select>
+
+          <button onclick="guardarEstado('Cuartel 1')">Guardar Cuartel 1</button>
+          <div class="small" id="saved-1">—</div>
+        </div>
       </div>
 
-      <div class="card">
+      <!-- Cuartel 2 -->
+      <div class="card" id="card-c2">
         <div class="label">Cuartel 2</div>
         <img src="img/logocuerpo.png" alt="Cuartel 2" class="logo-cuarto">
         <div id="c2" class="value">0</div>
-        <div class="name">Voluntarios dentro</div>
+        <div class="name">Personal en Guardia</div>
+
+        <div class="panel">
+          <label>Cuartelero en servicio</label>
+          <select id="cuartelero-2"></select>
+
+          <label>Conductor en servicio</label>
+          <select id="conductor-2"></select>
+
+          <label>Unidades presentes (multi)</label>
+          <select id="unidades-2" class="multi" multiple></select>
+
+          <button onclick="guardarEstado('Cuartel 2')">Guardar Cuartel 2</button>
+          <div class="small" id="saved-2">—</div>
+        </div>
       </div>
 
-      <div class="card">
+      <!-- Cuartel 3 -->
+      <div class="card" id="card-c3">
         <div class="label">Cuartel 3</div>
         <img src="img/logocuerpo.png" alt="Cuartel 3" class="logo-cuarto">
         <div id="c3" class="value">0</div>
-        <div class="name">Voluntarios dentro</div>
+        <div class="name">Personal en Guardia</div>
+
+        <div class="panel">
+          <label>Cuartelero en servicio</label>
+          <select id="cuartelero-3"></select>
+
+          <label>Conductor en servicio</label>
+          <select id="conductor-3"></select>
+
+          <label>Unidades presentes (multi)</label>
+          <select id="unidades-3" class="multi" multiple></select>
+
+          <button onclick="guardarEstado('Cuartel 3')">Guardar Cuartel 3</button>
+          <div class="small" id="saved-3">—</div>
+        </div>
       </div>
 
+      <!-- Total -->
       <div class="card">
         <div class="label">Total en planta</div>
         <div id="tot" class="value ok">0</div>
         <div class="name">Suma de los 3 cuarteles</div>
+        <div class="footer" id="updated">Actualizado: —</div>
       </div>
     </div>
-
-    <div class="footer" id="updated">Actualizado: —</div>
   </div>
 
 <script>
-  // 👉 URL del Apps Script
-  const API_URL = "https://script.google.com/macros/s/AKfycbzo_AaESTkdaXWmpeIs3tNLAV5XNJ2rDjP6z2xw_zkZ6HaAWYQ2tVvVAEcQz4_kMKzZ/exec?op=aforo";
-  const REFRESH_MS = 5000; // cada 5s
+  // 👉 Cambia por tu URL /exec
+  const API_BASE = "https://script.google.com/macros/s/AKfycbw7XxTUfgiic-9J28Oa5_ZNWhIrtTIiHWOOaoLpnyt9TmdMGPAaD09WcVgcHESer0uT/exec";
+  const REFRESH_MS = 5000;
 
   const el = {
     c1: document.getElementById('c1'),
@@ -109,39 +135,163 @@
     updated: document.getElementById('updated'),
     led: document.getElementById('led'),
     btn: document.getElementById('refreshBtn'),
+    cu1: document.getElementById('cuartelero-1'),
+    co1: document.getElementById('conductor-1'),
+    un1: document.getElementById('unidades-1'),
+    cu2: document.getElementById('cuartelero-2'),
+    co2: document.getElementById('conductor-2'),
+    un2: document.getElementById('unidades-2'),
+    cu3: document.getElementById('cuartelero-3'),
+    co3: document.getElementById('conductor-3'),
+    un3: document.getElementById('unidades-3'),
+    saved1: document.getElementById('saved-1'),
+    saved2: document.getElementById('saved-2'),
+    saved3: document.getElementById('saved-3'),
   };
+
+  // Utilidad JSONP
+  function jsonp(url){
+    return new Promise((resolve, reject)=>{
+      const cb = "cb_" + Math.random().toString(36).slice(2);
+      window[cb] = (data)=>{ resolve(data); try{delete window[cb]}catch{} };
+      const s = document.createElement('script');
+      s.src = url + (url.includes('?')?'&':'?') + 'callback=' + cb + '&_=' + Date.now();
+      s.onerror = ()=>{ reject(new Error('JSONP error')); };
+      document.body.appendChild(s);
+      setTimeout(()=>{ try{s.remove()}catch{} }, 12000);
+    });
+  }
 
   async function loadAforo(){
     try{
       el.status.textContent = "Actualizando…";
       el.led.classList.remove('bad'); el.led.classList.add('ok');
-
-      const res = await fetch(API_URL, { cache: "no-store" });
-      const text = await res.text();
-      const data = JSON.parse(text);
-
+      const data = await jsonp(API_BASE + "?op=aforo");
       const c1 = (data.counts && data.counts["Cuartel 1"]) || 0;
       const c2 = (data.counts && data.counts["Cuartel 2"]) || 0;
       const c3 = (data.counts && data.counts["Cuartel 3"]) || 0;
       const tot = data.total || (c1+c2+c3);
-
-      el.c1.textContent = c1;
-      el.c2.textContent = c2;
-      el.c3.textContent = c3;
-      el.tot.textContent = tot;
-
+      el.c1.textContent = c1; el.c2.textContent = c2; el.c3.textContent = c3; el.tot.textContent = tot;
       el.updated.textContent = "Actualizado: " + (data.updated || new Date().toLocaleString("es-CL"));
       el.status.textContent = "OK";
-    } catch (e){
-      console.error(e);
+    }catch(err){
+      console.error(err);
       el.status.textContent = "Error al actualizar";
       el.led.classList.remove('ok'); el.led.classList.add('bad');
     }
   }
 
+  async function loadCatalogosYEstado(){
+    // Bomberos (filtra cuarteleros y conductores)
+const bom = await jsonp(API_BASE + "?op=bomberos");
+
+const porCuartel = {
+  "Cuartel 1": { cuarteleros: [], conductores: [] },
+  "Cuartel 2": { cuarteleros: [], conductores: [] },
+  "Cuartel 3": { cuarteleros: [], conductores: [] },
+};
+
+Object.values(bom).forEach(b => {
+  if (!porCuartel[b.cuartel]) return;
+  if (b.cuartelero) porCuartel[b.cuartel].cuarteleros.push(b.nombre);
+  if (b.conductor) porCuartel[b.cuartel].conductores.push(b.nombre);
+});
+
+// Ordena alfabéticamente
+Object.keys(porCuartel).forEach(c => {
+  porCuartel[c].cuarteleros.sort((a,b)=>a.localeCompare(b));
+  porCuartel[c].conductores.sort((a,b)=>a.localeCompare(b));
+});
+
+    Object.keys(porCuartel).forEach(c=>porCuartel[c].sort((a,b)=>a.localeCompare(b)));
+
+    // 🔹 Unidades GLOBAL
+    const uni = await jsonp(API_BASE + "?op=unidades");
+    const allUnits = uni.unidades || [];
+
+    // Rellenar selects
+   fillSelect(el.cu1, porCuartel["Cuartel 1"].cuarteleros);
+fillSelect(el.co1, porCuartel["Cuartel 1"].conductores);
+fillSelect(el.cu2, porCuartel["Cuartel 2"].cuarteleros);
+fillSelect(el.co2, porCuartel["Cuartel 2"].conductores);
+fillSelect(el.cu3, porCuartel["Cuartel 3"].cuarteleros);
+fillSelect(el.co3, porCuartel["Cuartel 3"].conductores);
+
+    // Estado actual
+    const est = await jsonp(API_BASE + "?op=estado");
+    applyEstado("Cuartel 1", est, el.cu1, el.co1, el.un1, el.saved1);
+    applyEstado("Cuartel 2", est, el.cu2, el.co2, el.un2, el.saved2);
+    applyEstado("Cuartel 3", est, el.cu3, el.co3, el.un3, el.saved3);
+  }
+
+  function fillSelect(sel, arr){
+    sel.innerHTML = "";
+    const opt0 = document.createElement("option");
+    opt0.value = ""; opt0.textContent = "— Seleccionar —";
+    sel.appendChild(opt0);
+    (arr||[]).forEach(v=>{
+      const o = document.createElement("option");
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+  }
+  function fillSelectMulti(sel, arr){
+    sel.innerHTML = "";
+    (arr||[]).forEach(v=>{
+      const o = document.createElement("option");
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+  }
+  function applyEstado(cuartel, est, selCuartelero, selConductor, selUnidades, lblSaved){
+    const e = est[cuartel] || {cuartelero:"", conductor:"", unidades:[], updated:""};
+    if (e.cuartelero) selCuartelero.value = e.cuartelero;
+    if (e.conductor)  selConductor.value  = e.conductor;
+    if (e.unidades && e.unidades.length){
+      Array.from(selUnidades.options).forEach(op=>{
+        op.selected = e.unidades.includes(op.value);
+      });
+    }
+    lblSaved.textContent = e.updated ? ("Última actualización: " + e.updated) : "—";
+  }
+
+  async function guardarEstado(cuartel){
+    const map = {
+      "Cuartel 1": { cu: el.cu1, co: el.co1, un: el.un1, lbl: el.saved1 },
+      "Cuartel 2": { cu: el.cu2, co: el.co2, un: el.un2, lbl: el.saved2 },
+      "Cuartel 3": { cu: el.cu3, co: el.co3, un: el.un3, lbl: el.saved3 },
+    };
+    const ref = map[cuartel];
+    const cuartelero = ref.cu.value || "";
+    const conductor  = ref.co.value || "";
+    const unidades   = Array.from(ref.un.selectedOptions).map(o=>o.value).join(",");
+
+    ref.lbl.textContent = "Guardando…";
+    try{
+      const res = await jsonp(API_BASE + "?op=estado_set"
+        + "&cuartel="   + encodeURIComponent(cuartel)
+        + "&cuartelero="+ encodeURIComponent(cuartelero)
+        + "&conductor=" + encodeURIComponent(conductor)
+        + "&unidades="  + encodeURIComponent(unidades)
+      );
+      if (res && res.ok){
+        ref.lbl.textContent = "Guardado: " + (res.updated || "");
+      } else {
+        ref.lbl.textContent = "Error al guardar";
+      }
+    }catch(err){
+      console.error(err);
+      ref.lbl.textContent = "Error al guardar";
+    }
+  }
+
+  // Init
   el.btn.addEventListener('click', loadAforo);
-  loadAforo();
-  setInterval(loadAforo, REFRESH_MS);
+  (async function init(){
+    await loadCatalogosYEstado();
+    await loadAforo();
+    setInterval(loadAforo, REFRESH_MS);
+  })();
 </script>
 </body>
 </html>
