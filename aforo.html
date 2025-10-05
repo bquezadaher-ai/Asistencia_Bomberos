@@ -4,34 +4,52 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Aforo por Cuartel – Bomberos</title>
-
-.logo-cuarto {
-  display: block;
-  margin: 10px auto;
-  max-width: 30px;
-  height: auto;
-}
-
-
 <style>
-  :root{ --bg:#0b1020; --card:#111735; --ink:#e9ecff; --muted:#9aa3c7; --accent:#36d399; }
+  :root{
+    --bg:#0b1020; --card:#111735; --ink:#e9ecff; --muted:#9aa3c7; --accent:#36d399;
+  }
   *{box-sizing:border-box}
-  body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:linear-gradient(120deg,#0b1020,#0e1430); color:var(--ink);}
+  body{
+    margin:0; 
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; 
+    background:linear-gradient(120deg,#0b1020,#0e1430); 
+    color:var(--ink);
+  }
   .wrap{max-width:1000px; margin:40px auto; padding:0 16px;}
   h1{font-size:clamp(22px,3.5vw,34px); margin:0 0 8px}
   .sub{color:var(--muted); margin:0 0 24px}
   .grid{display:grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap:16px;}
-  .card{background:var(--card); border-radius:16px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,.25);}
+  .card{
+    background:var(--card); 
+    border-radius:16px; 
+    padding:20px; 
+    box-shadow:0 10px 30px rgba(0,0,0,.25);
+    text-align:center;
+  }
   .label{color:var(--muted); font-size:14px; margin-bottom:6px}
   .value{font-size:54px; font-weight:800; line-height:1; margin-bottom:6px}
   .name{font-size:16px; opacity:.9}
   .ok{color:var(--accent)}
   .footer{margin-top:18px; color:var(--muted); font-size:14px}
   .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:10px 0 20px}
-  button{background:var(--accent); color:#0b1020; border:none; padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer}
+  button{
+    background:var(--accent); color:#0b1020; border:none; 
+    padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer
+  }
   .led{width:10px; height:10px; border-radius:999px; background:#555}
   .led.ok{background:#36d399}
   .led.bad{background:#ef4444}
+
+  /* 🔹 Ajuste de imágenes */
+  .logo-cuarto {
+    display:block;
+    margin:10px auto 16px;
+    width:80px;
+    height:80px;
+    object-fit:contain;
+    border-radius:50%;
+    box-shadow:0 0 10px rgba(0,0,0,0.3);
+  }
 </style>
 </head>
 <body>
@@ -45,40 +63,42 @@
       <span id="led" class="led"></span>
     </div>
 
-   <div class="grid">
-  <div class="card">
-    <div class="label">Cuartel 1</div>
-    <img src="img/logocuerpo.png" alt="Cuartel 1" class="logo-cuarto">
-    <div id="c1" class="value">0</div>
-    <div class="name">Voluntarios dentro</div>
-  </div>
-  <div class="card">
-    <div class="label">Cuartel 2</div>
-    <img src="img/cuartel2.png" alt="Cuartel 2" class="logo-cuarto">
-    <div id="c2" class="value">0</div>
-    <div class="name">Voluntarios dentro</div>
-  </div>
-  <div class="card">
-    <div class="label">Cuartel 3</div>
-    <img src="img/cuartel3.png" alt="Cuartel 3" class="logo-cuarto">
-    <div id="c3" class="value">0</div>
-    <div class="name">Voluntarios dentro</div>
-  </div>
-  <div class="card">
-    <div class="label">Total en planta</div>
-    <div id="tot" class="value ok">0</div>
-    <div class="name">Suma de los 3 cuarteles</div>
-  </div>
-</div>
+    <div class="grid">
+      <div class="card">
+        <div class="label">Cuartel 1</div>
+        <img src="img/logocuerpo.png" alt="Cuartel 1" class="logo-cuarto">
+        <div id="c1" class="value">0</div>
+        <div class="name">Voluntarios dentro</div>
+      </div>
 
+      <div class="card">
+        <div class="label">Cuartel 2</div>
+        <img src="img/logocuerpo.png" alt="Cuartel 2" class="logo-cuarto">
+        <div id="c2" class="value">0</div>
+        <div class="name">Voluntarios dentro</div>
+      </div>
+
+      <div class="card">
+        <div class="label">Cuartel 3</div>
+        <img src="img/logocuerpo.png" alt="Cuartel 3" class="logo-cuarto">
+        <div id="c3" class="value">0</div>
+        <div class="name">Voluntarios dentro</div>
+      </div>
+
+      <div class="card">
+        <div class="label">Total en planta</div>
+        <div id="tot" class="value ok">0</div>
+        <div class="name">Suma de los 3 cuarteles</div>
+      </div>
+    </div>
 
     <div class="footer" id="updated">Actualizado: —</div>
   </div>
 
 <script>
-  // 👉 Tu URL de Apps Script (web app /exec) sin callback; lo agregamos desde JS
-  const API_URL = "https://script.google.com/macros/s/AKfycbyhfzUa2rYVEiZACTowwuVI3SpBodKMy5TqW7Ve58_YV4r9GYxY8JJ4y9A9QBnjCUej/exec?op=aforo";
-  const REFRESH_MS = 5000;
+  // 👉 URL del Apps Script
+  const API_URL = "https://script.google.com/macros/s/AKfycbzo_AaESTkdaXWmpeIs3tNLAV5XNJ2rDjP6z2xw_zkZ6HaAWYQ2tVvVAEcQz4_kMKzZ/exec?op=aforo";
+  const REFRESH_MS = 5000; // cada 5s
 
   const el = {
     c1: document.getElementById('c1'),
@@ -91,9 +111,15 @@
     btn: document.getElementById('refreshBtn'),
   };
 
-  // Callback JSONP que llamará Apps Script: updateAforo({...})
-  function updateAforo(data){
+  async function loadAforo(){
     try{
+      el.status.textContent = "Actualizando…";
+      el.led.classList.remove('bad'); el.led.classList.add('ok');
+
+      const res = await fetch(API_URL, { cache: "no-store" });
+      const text = await res.text();
+      const data = JSON.parse(text);
+
       const c1 = (data.counts && data.counts["Cuartel 1"]) || 0;
       const c2 = (data.counts && data.counts["Cuartel 2"]) || 0;
       const c3 = (data.counts && data.counts["Cuartel 3"]) || 0;
@@ -106,32 +132,11 @@
 
       el.updated.textContent = "Actualizado: " + (data.updated || new Date().toLocaleString("es-CL"));
       el.status.textContent = "OK";
-      el.led.classList.remove('bad'); el.led.classList.add('ok');
-    }catch(err){
-      console.error(err);
-      el.status.textContent = "Error al procesar";
-      el.led.classList.remove('ok'); el.led.classList.add('bad');
-    }
-  }
-
-  // Carga JSONP agregando <script src="...&callback=updateAforo&_={timestamp}">
-  function loadAforo(){
-    el.status.textContent = "Actualizando…";
-    el.led.classList.remove('bad'); el.led.classList.add('ok');
-
-    // anti-caché con timestamp
-    const src = API_URL + (API_URL.includes('?') ? '&' : '?') + 'callback=updateAforo&_=' + Date.now();
-
-    const s = document.createElement('script');
-    s.src = src;
-    s.onerror = () => {
+    } catch (e){
+      console.error(e);
       el.status.textContent = "Error al actualizar";
       el.led.classList.remove('ok'); el.led.classList.add('bad');
-    };
-    document.body.appendChild(s);
-
-    // Limpieza del tag script (opcional)
-    setTimeout(() => { try{ s.remove(); }catch(_){} }, 10000);
+    }
   }
 
   el.btn.addEventListener('click', loadAforo);
