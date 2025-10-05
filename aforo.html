@@ -182,14 +182,21 @@
   }
 
   async function loadCatalogosYEstado(){
-    // Bomberos (filtra cuarteleros y conductores)
+// Bomberos (mostrar TODOS los cuarteleros y conductores sin importar cuartel)
 const bom = await jsonp(API_BASE + "?op=bomberos");
 
-const porCuartel = {
-  "Cuartel 1": { cuarteleros: [], conductores: [] },
-  "Cuartel 2": { cuarteleros: [], conductores: [] },
-  "Cuartel 3": { cuarteleros: [], conductores: [] },
-};
+const todosCuarteleros = [];
+const todosConductores = [];
+
+Object.values(bom).forEach(b => {
+  if (b.cuartelero) todosCuarteleros.push(b.nombre);
+  if (b.conductor) todosConductores.push(b.nombre);
+});
+
+// Ordena alfabéticamente
+todosCuarteleros.sort((a,b)=>a.localeCompare(b));
+todosConductores.sort((a,b)=>a.localeCompare(b));
+
 
 Object.values(bom).forEach(b => {
   if (!porCuartel[b.cuartel]) return;
