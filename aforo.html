@@ -30,7 +30,7 @@
   .panel{ margin-top:10px; }
   .panel label{ display:block; font-size:13px; color:var(--muted); margin:8px 0 4px; }
   .panel select{ width:100%; padding:8px; border-radius:8px; border:1px solid #2a356a; background:#0f1633; color:var(--ink); }
-  .panel .multi{ height:120px; }
+  .panel .multi{ height:50px; }
 
   /* Chips (etiquetas de unidades presentes) */
   .chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
@@ -105,7 +105,7 @@
           <select id="conductor-2"></select>
 
           <label>Unidades presentes (multi)</label>
-          <select id="unidades-2" class="multi" multiple size="3"></select>
+          <select id="unidades-2" class="multi" multiple></select>
 
           <div class="row" style="margin-top:10px">
             <button onclick="guardarEstado('Cuartel 2')">Guardar Cuartel 2</button>
