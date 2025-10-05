@@ -12,9 +12,10 @@
   h1{font-size:clamp(22px,3.5vw,34px); margin:0 0 8px}
   .sub{color:var(--muted); margin:0 0 24px}
   .grid{display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap:16px;}
-  .card{background:var(--card); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.25); text-align:center;}
-  .label{color:var(--muted); font-size:14px; margin-bottom:6px}
-  .value{font-size:48px; font-weight:800; line-height:1; margin-bottom:6px}
+  .card{background:var(--card); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.25);}
+  .head{display:flex; align-items:center; gap:14px; margin-bottom:8px}
+  .label{color:var(--muted); font-size:14px; margin-bottom:2px}
+  .value{font-size:48px; font-weight:800; line-height:1; margin-bottom:4px}
   .name{font-size:14px; opacity:.9}
   .ok{color:var(--accent)}
   .footer{margin-top:18px; color:var(--muted); font-size:14px}
@@ -23,20 +24,25 @@
   .led{width:10px; height:10px; border-radius:999px; background:#555}
   .led.ok{background:#36d399}
   .led.bad{background:#ef4444}
+  .logo-cuarto{ flex:0 0 auto; width:64px; height:64px; object-fit:contain; border-radius:8px; box-shadow:0 0 8px rgba(0,0,0,.25); }
 
-  .logo-cuarto{ display:block; margin:10px auto 16px; max-width:90px; max-height:90px; width:auto; height:auto; object-fit:contain; border-radius:0; box-shadow:0 0 10px rgba(0,0,0,.3); }
-
-  .panel{ margin-top:12px; text-align:left; }
+  .countline{display:flex; align-items:flex-end; gap:12px; margin-bottom:10px}
+  .panel{ margin-top:10px; }
   .panel label{ display:block; font-size:13px; color:var(--muted); margin:8px 0 4px; }
   .panel select{ width:100%; padding:8px; border-radius:8px; border:1px solid #2a356a; background:#0f1633; color:var(--ink); }
-  .panel .multi{ height:110px; }
+  .panel .multi{ height:120px; }
+
+  /* Chips (etiquetas de unidades presentes) */
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .chip{ background:#0f1633; border:1px solid #2a356a; color:var(--ink); padding:4px 10px; border-radius:9999px; font-size:12px; }
+  .chip .dot{ width:8px; height:8px; background:var(--accent); border-radius:9999px; display:inline-block; margin-right:6px; vertical-align:middle; }
   .small{ font-size:12px; color:var(--muted); margin-top:6px; }
 </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Aforo en tiempo real</h1>
-    <p class="sub">Conteo por cuartel + estado operativo (cuartelero, conductor y unidades en planta).</p>
+    <p class="sub">Selecciona las <b>unidades presentes</b> en cada cuartel. Al guardar, se muestran como etiquetas al costado y se mantienen en la hoja.</p>
 
     <div class="row">
       <button id="refreshBtn">Actualizar ahora</button>
@@ -47,10 +53,17 @@
     <div class="grid">
       <!-- Cuartel 1 -->
       <div class="card" id="card-c1">
-        <div class="label">Cuartel 1</div>
-        <img src="img/logocuerpo.png" alt="Cuartel 1" class="logo-cuarto">
-        <div id="c1" class="value">0</div>
-        <div class="name">Personal en Guardia</div>
+        <div class="head">
+          <img src="img/logocuerpo.png" alt="Cuartel 1" class="logo-cuarto">
+          <div>
+            <div class="label">Cuartel 1</div>
+            <div class="countline">
+              <div id="c1" class="value">0</div>
+              <div class="name">Personal en Guardia</div>
+            </div>
+            <div id="chips-1" class="chips"></div>
+          </div>
+        </div>
 
         <div class="panel">
           <label>Cuartelero en servicio</label>
@@ -62,17 +75,27 @@
           <label>Unidades presentes (multi)</label>
           <select id="unidades-1" class="multi" multiple></select>
 
-          <button onclick="guardarEstado('Cuartel 1')">Guardar Cuartel 1</button>
+          <div class="row" style="margin-top:10px">
+            <button onclick="guardarEstado('Cuartel 1')">Guardar Cuartel 1</button>
+            <button onclick="limpiarSeleccion('Cuartel 1')">Limpiar</button>
+          </div>
           <div class="small" id="saved-1">—</div>
         </div>
       </div>
 
       <!-- Cuartel 2 -->
       <div class="card" id="card-c2">
-        <div class="label">Cuartel 2</div>
-        <img src="img/logocuerpo.png" alt="Cuartel 2" class="logo-cuarto">
-        <div id="c2" class="value">0</div>
-        <div class="name">Personal en Guardia</div>
+        <div class="head">
+          <img src="img/logocuerpo.png" alt="Cuartel 2" class="logo-cuarto">
+          <div>
+            <div class="label">Cuartel 2</div>
+            <div class="countline">
+              <div id="c2" class="value">0</div>
+              <div class="name">Personal en Guardia</div>
+            </div>
+            <div id="chips-2" class="chips"></div>
+          </div>
+        </div>
 
         <div class="panel">
           <label>Cuartelero en servicio</label>
@@ -84,17 +107,27 @@
           <label>Unidades presentes (multi)</label>
           <select id="unidades-2" class="multi" multiple></select>
 
-          <button onclick="guardarEstado('Cuartel 2')">Guardar Cuartel 2</button>
+          <div class="row" style="margin-top:10px">
+            <button onclick="guardarEstado('Cuartel 2')">Guardar Cuartel 2</button>
+            <button onclick="limpiarSeleccion('Cuartel 2')">Limpiar</button>
+          </div>
           <div class="small" id="saved-2">—</div>
         </div>
       </div>
 
       <!-- Cuartel 3 -->
       <div class="card" id="card-c3">
-        <div class="label">Cuartel 3</div>
-        <img src="img/logocuerpo.png" alt="Cuartel 3" class="logo-cuarto">
-        <div id="c3" class="value">0</div>
-        <div class="name">Personal en Guardia</div>
+        <div class="head">
+          <img src="img/logocuerpo.png" alt="Cuartel 3" class="logo-cuarto">
+          <div>
+            <div class="label">Cuartel 3</div>
+            <div class="countline">
+              <div id="c3" class="value">0</div>
+              <div class="name">Personal en Guardia</div>
+            </div>
+            <div id="chips-3" class="chips"></div>
+          </div>
+        </div>
 
         <div class="panel">
           <label>Cuartelero en servicio</label>
@@ -106,7 +139,10 @@
           <label>Unidades presentes (multi)</label>
           <select id="unidades-3" class="multi" multiple></select>
 
-          <button onclick="guardarEstado('Cuartel 3')">Guardar Cuartel 3</button>
+          <div class="row" style="margin-top:10px">
+            <button onclick="guardarEstado('Cuartel 3')">Guardar Cuartel 3</button>
+            <button onclick="limpiarSeleccion('Cuartel 3')">Limpiar</button>
+          </div>
           <div class="small" id="saved-3">—</div>
         </div>
       </div>
@@ -147,6 +183,9 @@
     saved1: document.getElementById('saved-1'),
     saved2: document.getElementById('saved-2'),
     saved3: document.getElementById('saved-3'),
+    chips1: document.getElementById('chips-1'),
+    chips2: document.getElementById('chips-2'),
+    chips3: document.getElementById('chips-3'),
   };
 
   // Utilidad JSONP
@@ -159,6 +198,17 @@
       s.onerror = ()=>{ reject(new Error('JSONP error')); };
       document.body.appendChild(s);
       setTimeout(()=>{ try{s.remove()}catch{} }, 12000);
+    });
+  }
+
+  // Render de chips a la vista
+  function renderChips(container, items){
+    container.innerHTML = "";
+    (items||[]).forEach(txt=>{
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.innerHTML = '<span class="dot"></span>' + txt;
+      container.appendChild(chip);
     });
   }
 
@@ -192,73 +242,80 @@
       sel.appendChild(o);
     });
   }
-  function fillSelectMulti(sel, arr){
+  function fillSelectMulti(sel, arr, selectedList){
     sel.innerHTML = "";
     (arr||[]).forEach(v=>{
       const o = document.createElement("option");
       o.value = v; o.textContent = v;
+      if (selectedList && selectedList.includes(v)) o.selected = true;
       sel.appendChild(o);
     });
   }
 
-  function applyEstado(cuartel, est, selCuartelero, selConductor, selUnidades, lblSaved){
+  function applyEstado(cuartel, est, selCuartelero, selConductor, selUnidades, lblSaved, chipsBox, allUnits){
     const e = est[cuartel] || {cuartelero:"", conductor:"", unidades:[], updated:""};
     if (e.cuartelero) selCuartelero.value = e.cuartelero;
     if (e.conductor)  selConductor.value  = e.conductor;
-    if (e.unidades && e.unidades.length){
-      Array.from(selUnidades.options).forEach(op=>{
-        op.selected = e.unidades.includes(op.value);
-      });
-    }
+
+    // Rellena multi con todas las unidades marcando las guardadas
+    fillSelectMulti(selUnidades, allUnits, e.unidades);
+
+    // Chips visibles
+    renderChips(chipsBox, e.unidades);
+
     lblSaved.textContent = e.updated ? ("Última actualización: " + e.updated) : "—";
   }
 
   async function loadCatalogosYEstado(){
-    // 1) Bomberos: armo listas de cuarteleros y conductores (nombres)
+    // 1) Bomberos -> listas de cuarteleros y conductores
     const bom = await jsonp(API_BASE + "?op=bomberos");
-    const todosCuarteleros = [];
-    const todosConductores = [];
+    const cuarteleros = [], conductores = [];
     Object.values(bom).forEach(b => {
-      if (b.cuartelero) todosCuarteleros.push(b.nombre);
-      if (b.conductor)  todosConductores.push(b.nombre);
+      if (b.cuartelero) cuarteleros.push(b.nombre);
+      if (b.conductor)  conductores.push(b.nombre);
     });
-    todosCuarteleros.sort((a,b)=>a.localeCompare(b));
-    todosConductores.sort((a,b)=>a.localeCompare(b));
+    cuarteleros.sort((a,b)=>a.localeCompare(b));
+    conductores.sort((a,b)=>a.localeCompare(b));
 
-    // 2) Unidades globales
+    // 2) Unidades (global)
     const uni = await jsonp(API_BASE + "?op=unidades");
     const allUnits = uni.unidades || [];
 
-    // 3) Relleno selects de los tres cuarteles
-    fillSelect(el.cu1, todosCuarteleros);
-    fillSelect(el.co1, todosConductores);
-    fillSelectMulti(el.un1, allUnits);
+    // 3) Relleno select simples
+    fillSelect(el.cu1, cuarteleros); fillSelect(el.co1, conductores);
+    fillSelect(el.cu2, cuarteleros); fillSelect(el.co2, conductores);
+    fillSelect(el.cu3, cuarteleros); fillSelect(el.co3, conductores);
 
-    fillSelect(el.cu2, todosCuarteleros);
-    fillSelect(el.co2, todosConductores);
-    fillSelectMulti(el.un2, allUnits);
-
-    fillSelect(el.cu3, todosCuarteleros);
-    fillSelect(el.co3, todosConductores);
-    fillSelectMulti(el.un3, allUnits);
-
-    // 4) Estado actual guardado
+    // 4) Estado actual (preselección + chips)
     const est = await jsonp(API_BASE + "?op=estado");
-    applyEstado("Cuartel 1", est, el.cu1, el.co1, el.un1, el.saved1);
-    applyEstado("Cuartel 2", est, el.cu2, el.co2, el.un2, el.saved2);
-    applyEstado("Cuartel 3", est, el.cu3, el.co3, el.un3, el.saved3);
+    applyEstado("Cuartel 1", est, el.cu1, el.co1, el.un1, el.saved1, el.chips1, allUnits);
+    applyEstado("Cuartel 2", est, el.cu2, el.co2, el.un2, el.saved2, el.chips2, allUnits);
+    applyEstado("Cuartel 3", est, el.cu3, el.co3, el.un3, el.saved3, el.chips3, allUnits);
+  }
+
+  function limpiarSeleccion(cuartel){
+    const map = {
+      "Cuartel 1": { un: el.un1, chips: el.chips1, lbl: el.saved1 },
+      "Cuartel 2": { un: el.un2, chips: el.chips2, lbl: el.saved2 },
+      "Cuartel 3": { un: el.un3, chips: el.chips3, lbl: el.saved3 },
+    };
+    const ref = map[cuartel];
+    Array.from(ref.un.options).forEach(op => op.selected = false);
+    renderChips(ref.chips, []);
+    ref.lbl.textContent = "—";
   }
 
   async function guardarEstado(cuartel){
     const map = {
-      "Cuartel 1": { cu: el.cu1, co: el.co1, un: el.un1, lbl: el.saved1 },
-      "Cuartel 2": { cu: el.cu2, co: el.co2, un: el.un2, lbl: el.saved2 },
-      "Cuartel 3": { cu: el.cu3, co: el.co3, un: el.un3, lbl: el.saved3 },
+      "Cuartel 1": { cu: el.cu1, co: el.co1, un: el.un1, lbl: el.saved1, chips: el.chips1 },
+      "Cuartel 2": { cu: el.cu2, co: el.co2, un: el.un2, lbl: el.saved2, chips: el.chips2 },
+      "Cuartel 3": { cu: el.cu3, co: el.co3, un: el.un3, lbl: el.saved3, chips: el.chips3 },
     };
     const ref = map[cuartel];
     const cuartelero = ref.cu.value || "";
     const conductor  = ref.co.value || "";
-    const unidades   = Array.from(ref.un.selectedOptions).map(o=>o.value).join(",");
+    const unidadesList = Array.from(ref.un.selectedOptions).map(o=>o.value);
+    const unidadesCSV  = unidadesList.join(",");
 
     ref.lbl.textContent = "Guardando…";
     try{
@@ -266,10 +323,11 @@
         + "&cuartel="   + encodeURIComponent(cuartel)
         + "&cuartelero="+ encodeURIComponent(cuartelero)
         + "&conductor=" + encodeURIComponent(conductor)
-        + "&unidades="  + encodeURIComponent(unidades)
+        + "&unidades="  + encodeURIComponent(unidadesCSV)
       );
       if (res && res.ok){
         ref.lbl.textContent = "Guardado: " + (res.updated || "");
+        renderChips(ref.chips, unidadesList); // refresca etiquetas visibles
       } else {
         ref.lbl.textContent = "Error al guardar";
       }
