@@ -203,8 +203,6 @@ Object.keys(porCuartel).forEach(c => {
   porCuartel[c].conductores.sort((a,b)=>a.localeCompare(b));
 });
 
-    Object.keys(porCuartel).forEach(c=>porCuartel[c].sort((a,b)=>a.localeCompare(b)));
-
     // 🔹 Unidades GLOBAL
     const uni = await jsonp(API_BASE + "?op=unidades");
     const allUnits = uni.unidades || [];
