@@ -29,14 +29,14 @@
   .panel{ margin-top:12px; text-align:left; }
   .panel label{ display:block; font-size:13px; color:var(--muted); margin:8px 0 4px; }
   .panel select{ width:100%; padding:8px; border-radius:8px; border:1px solid #2a356a; background:#0f1633; color:var(--ink); }
-  .panel .multi{ height:90px; }
+  .panel .multi{ height:110px; }
   .small{ font-size:12px; color:var(--muted); margin-top:6px; }
 </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Aforo en tiempo real</h1>
-    <p class="sub">Conteo por cuartel + estado operativo (cuartelero, conductor y unidades globales en planta).</p>
+    <p class="sub">Conteo por cuartel + estado operativo (cuartelero, conductor y unidades en planta).</p>
 
     <div class="row">
       <button id="refreshBtn">Actualizar ahora</button>
@@ -181,54 +181,6 @@
     }
   }
 
-  async function loadCatalogosYEstado(){
-// Bomberos (mostrar TODOS los cuarteleros y conductores sin importar cuartel)
-const bom = await jsonp(API_BASE + "?op=bomberos");
-
-const todosCuarteleros = [];
-const todosConductores = [];
-
-Object.values(bom).forEach(b => {
-  if (b.cuartelero) todosCuarteleros.push(b.nombre);
-  if (b.conductor) todosConductores.push(b.nombre);
-});
-
-// Ordena alfabéticamente
-todosCuarteleros.sort((a,b)=>a.localeCompare(b));
-todosConductores.sort((a,b)=>a.localeCompare(b));
-
-
-Object.values(bom).forEach(b => {
-  if (!porCuartel[b.cuartel]) return;
-  if (b.cuartelero) porCuartel[b.cuartel].cuarteleros.push(b.nombre);
-  if (b.conductor) porCuartel[b.cuartel].conductores.push(b.nombre);
-});
-
-// Ordena alfabéticamente
-Object.keys(porCuartel).forEach(c => {
-  porCuartel[c].cuarteleros.sort((a,b)=>a.localeCompare(b));
-  porCuartel[c].conductores.sort((a,b)=>a.localeCompare(b));
-});
-
-    // 🔹 Unidades GLOBAL
-    const uni = await jsonp(API_BASE + "?op=unidades");
-    const allUnits = uni.unidades || [];
-
-    // Rellenar selects
-   fillSelect(el.cu1, porCuartel["Cuartel 1"].cuarteleros);
-fillSelect(el.co1, porCuartel["Cuartel 1"].conductores);
-fillSelect(el.cu2, porCuartel["Cuartel 2"].cuarteleros);
-fillSelect(el.co2, porCuartel["Cuartel 2"].conductores);
-fillSelect(el.cu3, porCuartel["Cuartel 3"].cuarteleros);
-fillSelect(el.co3, porCuartel["Cuartel 3"].conductores);
-
-    // Estado actual
-    const est = await jsonp(API_BASE + "?op=estado");
-    applyEstado("Cuartel 1", est, el.cu1, el.co1, el.un1, el.saved1);
-    applyEstado("Cuartel 2", est, el.cu2, el.co2, el.un2, el.saved2);
-    applyEstado("Cuartel 3", est, el.cu3, el.co3, el.un3, el.saved3);
-  }
-
   function fillSelect(sel, arr){
     sel.innerHTML = "";
     const opt0 = document.createElement("option");
@@ -248,6 +200,7 @@ fillSelect(el.co3, porCuartel["Cuartel 3"].conductores);
       sel.appendChild(o);
     });
   }
+
   function applyEstado(cuartel, est, selCuartelero, selConductor, selUnidades, lblSaved){
     const e = est[cuartel] || {cuartelero:"", conductor:"", unidades:[], updated:""};
     if (e.cuartelero) selCuartelero.value = e.cuartelero;
@@ -258,6 +211,42 @@ fillSelect(el.co3, porCuartel["Cuartel 3"].conductores);
       });
     }
     lblSaved.textContent = e.updated ? ("Última actualización: " + e.updated) : "—";
+  }
+
+  async function loadCatalogosYEstado(){
+    // 1) Bomberos: armo listas de cuarteleros y conductores (nombres)
+    const bom = await jsonp(API_BASE + "?op=bomberos");
+    const todosCuarteleros = [];
+    const todosConductores = [];
+    Object.values(bom).forEach(b => {
+      if (b.cuartelero) todosCuarteleros.push(b.nombre);
+      if (b.conductor)  todosConductores.push(b.nombre);
+    });
+    todosCuarteleros.sort((a,b)=>a.localeCompare(b));
+    todosConductores.sort((a,b)=>a.localeCompare(b));
+
+    // 2) Unidades globales
+    const uni = await jsonp(API_BASE + "?op=unidades");
+    const allUnits = uni.unidades || [];
+
+    // 3) Relleno selects de los tres cuarteles
+    fillSelect(el.cu1, todosCuarteleros);
+    fillSelect(el.co1, todosConductores);
+    fillSelectMulti(el.un1, allUnits);
+
+    fillSelect(el.cu2, todosCuarteleros);
+    fillSelect(el.co2, todosConductores);
+    fillSelectMulti(el.un2, allUnits);
+
+    fillSelect(el.cu3, todosCuarteleros);
+    fillSelect(el.co3, todosConductores);
+    fillSelectMulti(el.un3, allUnits);
+
+    // 4) Estado actual guardado
+    const est = await jsonp(API_BASE + "?op=estado");
+    applyEstado("Cuartel 1", est, el.cu1, el.co1, el.un1, el.saved1);
+    applyEstado("Cuartel 2", est, el.cu2, el.co2, el.un2, el.saved2);
+    applyEstado("Cuartel 3", est, el.cu3, el.co3, el.un3, el.saved3);
   }
 
   async function guardarEstado(cuartel){
