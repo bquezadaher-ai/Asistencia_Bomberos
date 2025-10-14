@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aforo Cuartel 1 – Bomberos</title>
+<style>
+  :root{ --bg:#0b1020; --card:#111735; --ink:#e9ecff; --muted:#9aa3c7; --accent:#36d399; }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:linear-gradient(120deg,#0b1020,#0e1430); color:var(--ink);}
+  .wrap{max-width:1100px; margin:40px auto; padding:0 16px;}
+  h1{font-size:clamp(22px,3.5vw,34px); margin:0 0 8px}
+  .sub{color:var(--muted); margin:0 0 24px}
+  .grid{display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap:16px;}
+  .card{background:var(--card); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.25); text-align:center;}
+  .label{color:var(--muted); font-size:14px; margin-bottom:6px}
+  .value{font-size:48px; font-weight:800; line-height:1; margin-bottom:6px}
+  .name{font-size:14px; opacity:.9}
+  .ok{color:var(--accent)}
+  .footer{margin-top:18px; color:var(--muted); font-size:14px}
+  .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:10px 0 20px}
+  button{background:var(--accent); color:#0b1020; border:none; padding:8px 12px; border-radius:10px; font-weight:700; cursor:pointer}
+  .led{width:10px; height:10px; border-radius:999px; background:#555}
+  .led.ok{background:#36d399}
+  .led.bad{background:#ef4444}
+  input, select{padding:10px;border-radius:8px;border:1px solid #2a356a;background:#0f1633;color:#e9ecff;width:100%;}
+  .small{font-size:13px;color:var(--muted);margin-top:6px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Aforo en tiempo real – Cuartel 1</h1>
+    <p class="sub">Visualiza todo el aforo y registra ingresos manuales de este cuartel.</p>
+
+    <div class="row">
+      <button id="refreshBtn">Actualizar ahora</button>
+      <span id="status" class="sub">Esperando datos…</span>
+      <span id="led" class="led"></span>
+    </div>
+
+    <div class="grid">
+      <!-- Cuarteles -->
+      <div class="card"><div class="label">Cuartel 1</div><div id="c1" class="value">0</div><div class="name">Voluntarios dentro</div></div>
+      <div class="card"><div class="label">Cuartel 2</div><div id="c2" class="value">0</div><div class="name">Voluntarios dentro</div></div>
+      <div class="card"><div class="label">Cuartel 3</div><div id="c3" class="value">0</div><div class="name">Voluntarios dentro</div></div>
+      <div class="card"><div class="label">Cuartel 4</div><div id="c4" class="value">0</div><div class="name">Voluntarios dentro</div></div>
+      <div class="card"><div class="label">Total en planta</div><div id="tot" class="value ok">0</div><div class="name">Suma de los 4 cuarteles</div><div class="footer" id="updated">Actualizado: —</div></div>
+
+      <!-- Ingreso manual -->
+      <div class="card">
+        <div class="label">Ingreso manual (solo Cuartel 1)</div>
+        <div style="display:grid;gap:8px;">
+          <input id="manual-id" placeholder="ID del bombero (ej: BQ-001)" />
+          <select id="manual-motivo">
+            <option value="Guardia">Guardia</option>
+            <option value="Academia">Academia</option>
+            <option value="Curso">Curso</option>
+            <option value="Reunion">Reunión</option>
+            <option value="Visita">Visita</option>
+          </select>
+          <button id="manual-btn">Ingresar / Salir</button>
+          <div class="small" id="manual-msg">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  /* Configuración básica */
+  const CUARTEL_NAME = "Cuartel 1";
+  const API_BASE = "TU_URL_DE_APPS_SCRIPT/exec";   // reemplaza por tu URL real
+  const REFRESH_MS = 5000;
+
+  /* Elementos */
+  const el = {
+    c1:document.getElementById('c1'),
+    c2:document.getElementById('c2'),
+    c3:document.getElementById('c3'),
+    c4:document.getElementById('c4'),
+    tot:document.getElementById('tot'),
+    updated:document.getElementById('updated'),
+    status:document.getElementById('status'),
+    led:document.getElementById('led'),
+    btn:document.getElementById('refreshBtn'),
+    id:document.getElementById('manual-id'),
+    mot:document.getElementById('manual-motivo'),
+    btnM:document.getElementById('manual-btn'),
+    msg:document.getElementById('manual-msg')
+  };
+
+  /* JSONP helper */
+  function jsonp(url){
+    return new Promise((resolve,reject)=>{
+      const cb="cb_"+Math.random().toString(36).slice(2);
+      window[cb]=d=>{resolve(d);delete window[cb];};
+      const s=document.createElement("script");
+      s.src=url+(url.includes("?")?"&":"?")+"callback="+cb+"&_="+Date.now();
+      s.onerror=()=>reject(new Error("JSONP error"));
+      document.body.appendChild(s);
+      setTimeout(()=>{try{s.remove()}catch{}},12000);
+    });
+  }
+
+  /* Actualizar aforo */
+  async function loadAforo(){
+    try{
+      el.status.textContent="Actualizando…";
+      const data=await jsonp(API_BASE+"?op=aforo");
+      const c1=(data.counts&&data.counts["Cuartel 1"])||0;
+      const c2=(data.counts&&data.counts["Cuartel 2"])||0;
+      const c3=(data.counts&&data.counts["Cuartel 3"])||0;
+      const c4=(data.counts&&data.counts["Cuartel 4"])||0;
+      const tot=data.total||(c1+c2+c3+c4);
+      el.c1.textContent=c1;el.c2.textContent=c2;el.c3.textContent=c3;el.c4.textContent=c4;el.tot.textContent=tot;
+      el.updated.textContent="Actualizado: "+(data.updated||new Date().toLocaleString("es-CL"));
+      el.status.textContent="OK";el.led.classList.add("ok");
+    }catch(e){
+      console.error(e);
+      el.status.textContent="Error";
+      el.led.classList.add("bad");
+    }
+  }
+
+  /* Registrar manual (sin QR) */
+  async function registrarManual(){
+    const id=el.id.value.trim();
+    const motivo=el.mot.value;
+    if(!id){el.msg.textContent="Ingresa un ID válido.";return;}
+    el.msg.textContent="Procesando…";
+    try{
+      const res=await jsonp(API_BASE+"?op=toggle"
+        +"&id="+encodeURIComponent(id)
+        +"&cuartel="+encodeURIComponent(CUARTEL_NAME)
+        +"&motivo="+encodeURIComponent(motivo));
+      if(res&&res.ok){
+        el.msg.textContent=`${res.accion} registrada para ${res.nombre||id}`;
+        el.id.value="";loadAforo();
+      }else el.msg.textContent="Error: "+(res.error||"desconocido");
+    }catch(e){el.msg.textContent="Error de red";}
+  }
+
+  el.btn.addEventListener("click",loadAforo);
+  el.btnM.addEventListener("click",registrarManual);
+  loadAforo();
+  setInterval(loadAforo,REFRESH_MS);
+</script>
+</body>
+</html>
