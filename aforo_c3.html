@@ -3,34 +3,52 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Aforo Cuartel 1 – Bomberos</title>
+<title>Aforo – Cuartel 1</title>
 <style>
   :root{ --bg:#0b1020; --card:#111735; --ink:#e9ecff; --muted:#9aa3c7; --accent:#36d399; }
   *{box-sizing:border-box}
   body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:linear-gradient(120deg,#0b1020,#0e1430); color:var(--ink);}
-  .wrap{max-width:1100px; margin:40px auto; padding:0 16px;}
+  .wrap{max-width:1200px; margin:40px auto; padding:0 16px;}
   h1{font-size:clamp(22px,3.5vw,34px); margin:0 0 8px}
   .sub{color:var(--muted); margin:0 0 24px}
   .grid{display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap:16px;}
-  .card{background:var(--card); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.25); text-align:center;}
-  .label{color:var(--muted); font-size:14px; margin-bottom:6px}
-  .value{font-size:48px; font-weight:800; line-height:1; margin-bottom:6px}
-  .name{font-size:14px; opacity:.9}
+  .card{background:var(--card); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.25);}
+  .head{display:flex; align-items:center; gap:12px; margin-bottom:6px}
+  .logo-cu{width:54px; height:54px; object-fit:contain; border-radius:10px; background:#0f1633; border:1px solid #2a356a}
+  .title{display:flex; align-items:center; gap:8px}
+  .editable-tag{font-size:11px; padding:2px 8px; border-radius:999px; background:#103a2f; color:#9ef3c7; border:1px solid #2a6f59}
+  .readonly-tag{font-size:11px; padding:2px 8px; border-radius:999px; background:#2a2f52; color:#c7cff1; border:1px solid #3d4681}
+  .label{color:var(--muted); font-size:13px; margin-bottom:6px}
+  .value{font-size:46px; font-weight:800; line-height:1; margin-bottom:6px}
+  .name{font-size:13px; opacity:.9}
   .ok{color:var(--accent)}
-  .footer{margin-top:18px; color:var(--muted); font-size:14px}
   .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:10px 0 20px}
   button{background:var(--accent); color:#0b1020; border:none; padding:8px 12px; border-radius:10px; font-weight:700; cursor:pointer}
+  .btn-alt{background:#1f2b63; color:#e9ecff}
   .led{width:10px; height:10px; border-radius:999px; background:#555}
   .led.ok{background:#36d399}
   .led.bad{background:#ef4444}
-  input, select{padding:10px;border-radius:8px;border:1px solid #2a356a;background:#0f1633;color:#e9ecff;width:100%;}
-  .small{font-size:13px;color:var(--muted);margin-top:6px}
+  select,input{padding:10px;border-radius:8px;border:1px solid #2a356a;background:#0f1633;color:#e9ecff;width:100%;}
+  .footer{margin-top:10px; color:var(--muted); font-size:12px}
+
+  .unit-list{ border:1px solid #2a356a; background:#0f1633; border-radius:8px; padding:8px; max-height:150px; overflow:auto; }
+  .unit-item{ display:flex; align-items:center; gap:8px; padding:4px 6px; border-radius:6px; }
+  .unit-item:hover{ background:#121b3d; }
+  .unit-item input{ transform:scale(1.05); }
+  .compact{ font-size:13px; color:var(--muted); }
+
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .chip{ background:#0f1633; border:1px solid #2a356a; color:var(--ink); padding:4px 10px; border-radius:9999px; font-size:12px; }
+  .chip .dot{ width:8px; height:8px; background:var(--accent); border-radius:9999px; display:inline-block; margin-right:6px; vertical-align:middle; }
+
+  .state-line{ font-size:13px; margin-top:6px; color:#d8defe; }
+  .state-line span{ color:#9aa3c7; }
 </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Aforo en tiempo real – Cuartel 3</h1>
-    <p class="sub">Visualiza todo el aforo y registra ingresos manuales de este cuartel.</p>
+    <p class="sub">Edita <b>solo</b> el estado del Cuartel 1. Los demás cuarteles se muestran en modo lectura.</p>
 
     <div class="row">
       <button id="refreshBtn">Actualizar ahora</button>
@@ -38,111 +56,278 @@
       <span id="led" class="led"></span>
     </div>
 
-    <div class="grid">
-      <!-- Cuarteles -->
-      <div class="card"><div class="label">Cuartel 1</div><div id="c1" class="value">0</div><div class="name">Voluntarios dentro</div></div>
-      <div class="card"><div class="label">Cuartel 2</div><div id="c2" class="value">0</div><div class="name">Voluntarios dentro</div></div>
-      <div class="card"><div class="label">Cuartel 3</div><div id="c3" class="value">0</div><div class="name">Voluntarios dentro</div></div>
-      <div class="card"><div class="label">Cuartel 4</div><div id="c4" class="value">0</div><div class="name">Voluntarios dentro</div></div>
-      <div class="card"><div class="label">Total en planta</div><div id="tot" class="value ok">0</div><div class="name">Suma de los 4 cuarteles</div><div class="footer" id="updated">Actualizado: —</div></div>
+    <div class="grid" id="grid"></div>
 
-      <!-- Ingreso manual -->
-      <div class="card">
-        <div class="label">Ingreso manual (solo Cuartel 1)</div>
-        <div style="display:grid;gap:8px;">
-          <input id="manual-id" placeholder="ID del bombero (ej: BQ-001)" />
-          <select id="manual-motivo">
-            <option value="Guardia">Guardia</option>
-            <option value="Academia">Academia</option>
-            <option value="Curso">Curso</option>
-            <option value="Reunion">Reunión</option>
-            <option value="Visita">Visita</option>
-          </select>
-          <button id="manual-btn">Ingresar / Salir</button>
-          <div class="small" id="manual-msg">—</div>
-        </div>
-      </div>
-    </div>
+    <div class="footer" id="updated">Actualizado: —</div>
   </div>
 
 <script>
-  /* Configuración básica */
-  const CUARTEL_NAME = "Cuartel 3";
-  const API_BASE = "https://script.google.com/macros/s/AKfycby87PpJE16_zKG456oOuV5Zz98sDUP-94az0-EUiSWuzHWU8Ilxc0xTqez7h2TxdGHZ/exec";   // reemplaza por tu URL real
+  /* ==== Config ==== */
+  const CUARTEL_NAME = "Cuartel 3";                  // ← cambia en C2/C3/C4
+  const API_BASE = "https://script.google.com/macros/s/AKfycby87PpJE16_zKG456oOuV5Zz98sDUP-94az0-EUiSWuzHWU8Ilxc0xTqez7h2TxdGHZ/exec";     // ← tu /exec
   const REFRESH_MS = 5000;
 
-  /* Elementos */
-  const el = {
-    c1:document.getElementById('c1'),
-    c2:document.getElementById('c2'),
-    c3:document.getElementById('c3'),
-    c4:document.getElementById('c4'),
-    tot:document.getElementById('tot'),
-    updated:document.getElementById('updated'),
-    status:document.getElementById('status'),
-    led:document.getElementById('led'),
-    btn:document.getElementById('refreshBtn'),
-    id:document.getElementById('manual-id'),
-    mot:document.getElementById('manual-motivo'),
-    btnM:document.getElementById('manual-btn'),
-    msg:document.getElementById('manual-msg')
+  // Map de logos (pon tus rutas reales)
+  const LOGOS = {
+    "Cuartel 1": "img/c1.png",
+    "Cuartel 2": "img/c2.png",
+    "Cuartel 3": "img/c3.png",
+    "Cuartel 4": "img/c4.png",
   };
 
-  /* JSONP helper */
+  /* ==== Utils ==== */
   function jsonp(url){
-    return new Promise((resolve,reject)=>{
-      const cb="cb_"+Math.random().toString(36).slice(2);
-      window[cb]=d=>{resolve(d);delete window[cb];};
-      const s=document.createElement("script");
-      s.src=url+(url.includes("?")?"&":"?")+"callback="+cb+"&_="+Date.now();
-      s.onerror=()=>reject(new Error("JSONP error"));
+    return new Promise((resolve, reject)=>{
+      const cb = "cb_" + Math.random().toString(36).slice(2);
+      window[cb] = (data)=>{ resolve(data); try{ delete window[cb]; }catch{} };
+      const s = document.createElement('script');
+      s.src = url + (url.includes('?')?'&':'?') + 'callback=' + cb + '&_=' + Date.now();
+      s.onerror = ()=> reject(new Error('JSONP error'));
       document.body.appendChild(s);
-      setTimeout(()=>{try{s.remove()}catch{}},12000);
+      setTimeout(()=>{ try{s.remove()}catch{} }, 12000);
+    });
+  }
+  function renderChips(container, list){
+    container.innerHTML = "";
+    (list||[]).forEach(txt=>{
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.innerHTML = '<span class="dot"></span>' + txt;
+      container.appendChild(chip);
+    });
+  }
+  function renderCheckboxList(container, allUnits, selected){
+    container.innerHTML = "";
+    const setSel = new Set(selected||[]);
+    (allUnits||[]).forEach(u=>{
+      const row = document.createElement('label');
+      row.className = 'unit-item';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = u;
+      cb.checked = setSel.has(u);
+      const txt = document.createElement('span');
+      txt.textContent = u;
+      row.appendChild(cb); row.appendChild(txt);
+      container.appendChild(row);
+    });
+  }
+  function getChecked(container){
+    return Array.from(container.querySelectorAll('input[type=checkbox]:checked')).map(cb=>cb.value);
+  }
+  function fillSelect(sel, arr, selected){
+    sel.innerHTML = "";
+    const opt0 = document.createElement('option');
+    opt0.value = ""; opt0.textContent = "— Seleccionar —";
+    sel.appendChild(opt0);
+    (arr||[]).forEach(v=>{
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      if (selected && selected === v) o.selected = true;
+      sel.appendChild(o);
     });
   }
 
-  /* Actualizar aforo */
+  /* ==== UI ==== */
+  const cuarteles = ["Cuartel 1","Cuartel 2","Cuartel 3","Cuartel 4"];
+  const grid = document.getElementById('grid');
+  const el = {
+    status: document.getElementById('status'),
+    led: document.getElementById('led'),
+    btn: document.getElementById('refreshBtn'),
+    updated: document.getElementById('updated'),
+  };
+
+  function buildCards(){
+    grid.innerHTML = "";
+    cuarteles.forEach(cu=>{
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.id = 'card-' + cu.replace(" ","-");
+
+      const editable = (cu === CUARTEL_NAME);
+      const tag = editable ? '<span class="editable-tag">Editable</span>' : '<span class="readonly-tag">Solo lectura</span>';
+      const logo = LOGOS[cu] || "img/logocuerpo.png";
+
+      card.innerHTML = `
+        <div class="head">
+          <img class="logo-cu" src="${logo}" alt="${cu}">
+          <div class="title">
+            <div class="label">${cu}</div>
+            ${tag}
+          </div>
+        </div>
+        <div class="value" id="cnt-${cu}">0</div>
+        <div class="name">Voluntarios dentro</div>
+      `;
+
+      if (editable){
+        const panel = document.createElement('div');
+        panel.innerHTML = `
+          <div class="row" style="margin-top:8px">
+            <div style="flex:1; min-width:180px">
+              <div class="label">Cuartelero</div>
+              <select id="sel-cu-${cu}"></select>
+            </div>
+            <div style="flex:1; min-width:180px">
+              <div class="label">Conductor</div>
+              <select id="sel-co-${cu}"></select>
+            </div>
+          </div>
+
+          <div class="label" style="margin-top:4px">Unidades activas</div>
+          <div id="box-un-${cu}" class="unit-list"></div>
+          <div class="compact">Marca todas las que estén presentes ahora.</div>
+
+          <div class="row" style="margin-top:10px">
+            <button class="btn-save" data-cu="${cu}">Guardar estado</button>
+            <button class="btn-clear btn-alt" data-cu="${cu}">Limpiar</button>
+          </div>
+
+          <div class="label">Unidades guardadas</div>
+          <div id="chips-${cu}" class="chips"></div>
+
+          <div class="footer" id="saved-${cu}">—</div>
+        `;
+        card.appendChild(panel);
+      } else {
+        const view = document.createElement('div');
+        view.innerHTML = `
+          <div class="state-line">Cuartelero: <span id="view-cu-${cu}">—</span></div>
+          <div class="state-line">Conductor: <span id="view-co-${cu}">—</span></div>
+          <div class="label" style="margin-top:6px">Unidades activas</div>
+          <div id="chips-${cu}" class="chips"></div>
+          <div class="footer" id="saved-${cu}">—</div>
+        `;
+        card.appendChild(view);
+      }
+
+      grid.appendChild(card);
+    });
+  }
+
+  /* ==== Datos ==== */
+  let ALL_UNITS = [];
+  let CUARTELEROS = [];
+  let CONDUCTORES = [];
+
+  async function loadCatalogos(){
+    const bom = await jsonp(API_BASE + "?op=bomberos");
+    CUARTELEROS = []; CONDUCTORES = [];
+    Object.values(bom).forEach(b=>{
+      if (b.cuartelero) CUARTELEROS.push(b.nombre);
+      if (b.conductor)  CONDUCTORES.push(b.nombre);
+    });
+    CUARTELEROS.sort((a,b)=>a.localeCompare(b));
+    CONDUCTORES.sort((a,b)=>a.localeCompare(b));
+
+    const uni = await jsonp(API_BASE + "?op=unidades");
+    ALL_UNITS = uni.unidades || [];
+  }
+
   async function loadAforo(){
     try{
-      el.status.textContent="Actualizando…";
-      const data=await jsonp(API_BASE+"?op=aforo");
-      const c1=(data.counts&&data.counts["Cuartel 1"])||0;
-      const c2=(data.counts&&data.counts["Cuartel 2"])||0;
-      const c3=(data.counts&&data.counts["Cuartel 3"])||0;
-      const c4=(data.counts&&data.counts["Cuartel 4"])||0;
-      const tot=data.total||(c1+c2+c3+c4);
-      el.c1.textContent=c1;el.c2.textContent=c2;el.c3.textContent=c3;el.c4.textContent=c4;el.tot.textContent=tot;
-      el.updated.textContent="Actualizado: "+(data.updated||new Date().toLocaleString("es-CL"));
-      el.status.textContent="OK";el.led.classList.add("ok");
-    }catch(e){
+      el.status.textContent = "Actualizando…";
+      el.led.classList.remove('bad'); el.led.classList.add('ok');
+      const data = await jsonp(API_BASE + "?op=aforo");
+
+      const counts = data.counts || {};
+      cuarteles.forEach(cu=>{
+        const node = document.getElementById("cnt-" + cu);
+        if (node) node.textContent = counts[cu] || 0;
+      });
+
+      el.updated.textContent = "Actualizado: " + (data.updated || new Date().toLocaleString("es-CL"));
+      el.status.textContent = "OK";
+    } catch(e){
       console.error(e);
-      el.status.textContent="Error";
-      el.led.classList.add("bad");
+      el.status.textContent = "Error";
+      el.led.classList.remove('ok'); el.led.classList.add('bad');
     }
   }
 
-  /* Registrar manual (sin QR) */
-  async function registrarManual(){
-    const id=el.id.value.trim();
-    const motivo=el.mot.value;
-    if(!id){el.msg.textContent="Ingresa un ID válido.";return;}
-    el.msg.textContent="Procesando…";
-    try{
-      const res=await jsonp(API_BASE+"?op=toggle"
-        +"&id="+encodeURIComponent(id)
-        +"&cuartel="+encodeURIComponent(CUARTEL_NAME)
-        +"&motivo="+encodeURIComponent(motivo));
-      if(res&&res.ok){
-        el.msg.textContent=`${res.accion} registrada para ${res.nombre||id}`;
-        el.id.value="";loadAforo();
-      }else el.msg.textContent="Error: "+(res.error||"desconocido");
-    }catch(e){el.msg.textContent="Error de red";}
+  async function loadEstado(){
+    const est = await jsonp(API_BASE + "?op=estado");
+    for (const cu of cuarteles){
+      const e = est[cu] || {cuartelero:"", conductor:"", unidades:[], updated:""};
+      if (cu === CUARTEL_NAME){
+        fillSelect(document.getElementById(`sel-cu-${cu}`), CUARTELEROS, e.cuartelero);
+        fillSelect(document.getElementById(`sel-co-${cu}`), CONDUCTORES, e.conductor);
+        renderCheckboxList(document.getElementById(`box-un-${cu}`), ALL_UNITS, e.unidades);
+        renderChips(document.getElementById(`chips-${cu}`), e.unidades);
+      } else {
+        const vcu = document.getElementById(`view-cu-${cu}`);
+        const vco = document.getElementById(`view-co-${cu}`);
+        if (vcu) vcu.textContent = e.cuartelero || "—";
+        if (vco) vco.textContent = e.conductor  || "—";
+        renderChips(document.getElementById(`chips-${cu}`), e.unidades);
+      }
+      const saved = document.getElementById(`saved-${cu}`);
+      if (saved) saved.textContent = e.updated ? ("Última actualización: " + e.updated) : "—";
+    }
   }
 
-  el.btn.addEventListener("click",loadAforo);
-  el.btnM.addEventListener("click",registrarManual);
-  loadAforo();
-  setInterval(loadAforo,REFRESH_MS);
+  async function guardarEstado(cu){
+    if (cu !== CUARTEL_NAME) return;
+    const selCu = document.getElementById(`sel-cu-${cu}`);
+    const selCo = document.getElementById(`sel-co-${cu}`);
+    const boxUn = document.getElementById(`box-un-${cu}`);
+    const lbl   = document.getElementById(`saved-${cu}`);
+    const chips = document.getElementById(`chips-${cu}`);
+
+    const cuartelero = selCu.value || "";
+    const conductor  = selCo.value || "";
+    const unidades   = getChecked(boxUn);
+    const csv        = unidades.join(",");
+
+    lbl.textContent = "Guardando…";
+    try{
+      const res = await jsonp(API_BASE + "?op=estado_set"
+        + "&cuartel="    + encodeURIComponent(cu)
+        + "&cuartelero=" + encodeURIComponent(cuartelero)
+        + "&conductor="  + encodeURIComponent(conductor)
+        + "&unidades="   + encodeURIComponent(csv)
+      );
+      if (res && res.ok){
+        lbl.textContent = "Guardado: " + (res.updated || "");
+        renderChips(chips, unidades);
+      } else {
+        lbl.textContent = "Error al guardar";
+      }
+    }catch(e){
+      console.error(e);
+      lbl.textContent = "Error al guardar";
+    }
+  }
+  function limpiarSeleccion(cu){
+    if (cu !== CUARTEL_NAME) return;
+    const boxUn = document.getElementById(`box-un-${cu}`);
+    const chips = document.getElementById(`chips-${cu}`);
+    const lbl   = document.getElementById(`saved-${cu}`);
+    boxUn.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+    renderChips(chips, []);
+    lbl.textContent = "—";
+  }
+  function hookButtons(){
+    grid.addEventListener('click', (ev)=>{
+      const bSave = ev.target.closest('.btn-save');
+      const bClr  = ev.target.closest('.btn-clear');
+      if (bSave)  guardarEstado(bSave.dataset.cu);
+      if (bClr)   limpiarSeleccion(bClr.dataset.cu);
+    });
+  }
+
+  document.getElementById('refreshBtn').addEventListener('click', ()=>{ loadAforo(); loadEstado(); });
+
+  (async function init(){
+    buildCards();
+    hookButtons();
+    await loadCatalogos();
+    await loadAforo();
+    await loadEstado();
+    setInterval(loadAforo, REFRESH_MS);
+    setInterval(loadEstado, REFRESH_MS * 2);
+  })();
 </script>
 </body>
 </html>
