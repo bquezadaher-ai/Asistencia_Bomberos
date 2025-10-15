@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lector QR – Cuartel 1</title>
+<style>
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0b1020;color:#e9ecff}
+  .wrap{max-width:900px;margin:24px auto;padding:0 16px}
+  h1{margin:8px 0 4px}
+  .sub{color:#9aa3c7;margin:0 0 16px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0 16px}
+  button{background:#36d399;color:#0b1020;border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
+  .btn-alt{background:#1f2b63;color:#e9ecff}
+  .pill{border:1px solid #2a356a;background:#0f1633;border-radius:999px;padding:6px 10px;cursor:pointer}
+  .active{outline:2px solid #36d399}
+  #reader{width:100%;max-width:520px;aspect-ratio:3/4;background:#000;border-radius:12px;overflow:hidden}
+  .log{background:#0f1633;border:1px solid #2a356a;border-radius:10px;padding:10px;min-height:44px}
+  .ok{color:#36d399}.bad{color:#ef4444}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Lector QR – Cuartel 1</h1>
+  <p class="sub">Escanea un QR. El sistema alterna Entrada/Salida automáticamente y registra para este cuartel.</p>
+
+  <div class="row">
+    <span>Motivo:</span>
+    <span class="pill active" data-m="Guardia">Guardia</span>
+    <span class="pill" data-m="Academia">Academia</span>
+    <span class="pill" data-m="Curso">Curso</span>
+    <span class="pill" data-m="Reunion">Reunión</span>
+    <span class="pill" data-m="Visita">Visita</span>
+  </div>
+
+  <div id="reader"></div>
+
+  <div class="row" style="margin-top:12px">
+    <button id="startBtn">Iniciar cámara</button>
+    <button id="stopBtn" class="btn-alt">Detener cámara</button>
+    <button id="switchBtn" class="btn-alt">Cambiar cámara</button>
+  </div>
+
+  <div class="log" id="log">Listo.</div>
+</div>
+
+<!-- Librería del lector -->
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+  // ⚙️ Configuración
+  const CUARTEL_NAME = "Cuartel 1";
+  const API_BASE = "REEMPLAZA_AQUI_TU_URL/exec"; // ← pon tu /exec
+  const SCAN_COOLDOWN_MS = 2000; // antirréplica por ID
+
+  // Estado UI
+  const logEl = document.getElementById('log');
+  let currentMotivo = "Guardia";
+  document.querySelectorAll('.pill').forEach(p=>{
+    p.addEventListener('click', ()=>{
+      document.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));
+      p.classList.add('active');
+      currentMotivo = p.dataset.m;
+    });
+  });
+
+  // JSONP helper (sin CORS)
+  function jsonp(url){
+    return new Promise((resolve,reject)=>{
+      const cb="cb_"+Math.random().toString(36).slice(2);
+      window[cb]=d=>{resolve(d);try{delete window[cb]}catch{}};
+      const s=document.createElement('script');
+      s.src=url+(url.includes('?')?'&':'?')+"callback="+cb+"&_="+Date.now();
+      s.onerror=()=>reject(new Error("JSONP error"));
+      document.body.appendChild(s);
+      setTimeout(()=>{try{s.remove()}catch{}},12000);
+    });
+  }
+
+  // TTS (voz)
+  function speak(text){
+    try{
+      const u=new SpeechSynthesisUtterance(text);
+      u.lang="es-CL";
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    }catch{}
+  }
+
+  // Antirréplica por ID
+  const lastScanAt = new Map();
+  function canAccept(id){
+    const t=Date.now(), last=lastScanAt.get(id)||0;
+    if (t-last < SCAN_COOLDOWN_MS) return false;
+    lastScanAt.set(id, t);
+    return true;
+  }
+
+  // Parseo del QR:
+  // admite: 1) solo ID (ej: BQ-001)
+  //         2) JSON con {id:"...", nombre:"...", cargo:"..."} (tomamos id)
+  function extractIdFromQr(text){
+    try{
+      const obj = JSON.parse(text);
+      if (obj && obj.id) return String(obj.id).trim().toUpperCase();
+    }catch{}
+    return String(text||"").trim().toUpperCase();
+  }
+
+  // Envío al backend (toggle)
+  async function registrar(id){
+    logEl.textContent = "Registrando…";
+    try{
+      const res = await jsonp(API_BASE+"?op=toggle"
+        +"&id="+encodeURIComponent(id)
+        +"&cuartel="+encodeURIComponent(CUARTEL_NAME)
+        +"&motivo="+encodeURIComponent(currentMotivo));
+      if(res && res.ok){
+        const msg = `${res.accion} para ${res.nombre||id} (${CUARTEL_NAME})`;
+        logEl.innerHTML = `<span class="ok">${msg}</span>`;
+        speak((res.accion==="Entrada"?"Bienvenido ":"Adiós ")+(res.nombre||"voluntario")+".");
+      }else{
+        logEl.innerHTML = `<span class="bad">Error: ${res && res.error ? res.error : "no se pudo registrar"}</span>`;
+        speak("Error al registrar.");
+      }
+    }catch(e){
+      logEl.innerHTML = `<span class="bad">Error de red</span>`;
+      console.error(e);
+    }
+  }
+
+  // html5-qrcode
+  const html5QrCode = new Html5Qrcode("reader");
+  let currentCameraId = null;
+
+  async function startCamera(){
+    logEl.textContent="Solicitando cámara…";
+    const devices = await Html5Qrcode.getCameras();
+    if (!devices || !devices.length){ logEl.innerHTML='<span class="bad">No hay cámaras</span>'; return; }
+    currentCameraId = currentCameraId || (devices.find(d=>/back|rear|environment/i.test(d.label))?.id || devices[0].id);
+    await html5QrCode.start(
+      { deviceId: { exact: currentCameraId } },
+      { fps: 10, qrbox: { width: 300, height: 300 } },
+      onScanSuccess,
+      onScanError
+    );
+    logEl.textContent="Cámara activa. Escanea un QR.";
+  }
+
+  async function stopCamera(){
+    try{ await html5QrCode.stop(); logEl.textContent="Cámara detenida."; }catch{}
+  }
+
+  async function switchCamera(){
+    try{
+      const devices = await Html5Qrcode.getCameras();
+      if (!devices || devices.length<2){ logEl.textContent="No hay otra cámara"; return; }
+      const idx = devices.findIndex(d=>d.id===currentCameraId);
+      const next = devices[(idx+1)%devices.length];
+      await html5QrCode.stop();
+      currentCameraId = next.id;
+      await startCamera();
+    }catch(e){ console.error(e); }
+  }
+
+  function onScanSuccess(decodedText){
+    const id = extractIdFromQr(decodedText);
+    if(!id) { logEl.innerHTML='<span class="bad">QR sin ID</span>'; return; }
+    if(!canAccept(id)) return; // evita múltiples lecturas del mismo QR
+    registrar(id); // no detenemos la cámara
+  }
+  function onScanError(){ /* ignorar errores de foco/ruido */ }
+
+  // Botones
+  document.getElementById('startBtn').addEventListener('click', startCamera);
+  document.getElementById('stopBtn').addEventListener('click', stopCamera);
+  document.getElementById('switchBtn').addEventListener('click', switchCamera);
+
+  // Autostart (cuando el usuario interactúa, algunos navegadores exigen click previo)
+  // startCamera(); // si lo quieres automático, descomenta
+</script>
+</body>
+</html>
