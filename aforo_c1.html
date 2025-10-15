@@ -35,14 +35,12 @@
   .unit-item{ display:flex; align-items:center; gap:8px; padding:4px 6px; border-radius:6px; }
   .unit-item:hover{ background:#121b3d; }
   .unit-item input{ transform:scale(1.05); }
-  .compact{ font-size:13px; color:var(--muted); }
 
   .chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
   .chip{ background:#0f1633; border:1px solid #2a356a; color:var(--ink); padding:4px 10px; border-radius:9999px; font-size:12px; }
   .chip .dot{ width:8px; height:8px; background:var(--accent); border-radius:9999px; display:inline-block; margin-right:6px; vertical-align:middle; }
 
-  .state-line{ font-size:13px; margin-top:6px; color:#d8defe; }
-  .state-line span{ color:#9aa3c7; }
+  .small{ font-size:12px; color:var(--muted); }
 </style>
 </head>
 <body>
@@ -57,20 +55,24 @@
     </div>
 
     <div class="grid" id="grid"></div>
+
+    <!-- Ingreso manual por ID -->
     <div class="card" style="margin-top:20px">
       <div class="label">Ingreso manual por ID</div>
       <p class="sub" style="margin-bottom:10px">Usa este formulario si el voluntario no tiene su QR.</p>
       <div class="row" style="flex-wrap:wrap;gap:10px">
-        <input id="manual-id" placeholder="ID del bombero" style="flex:1;min-width:180px" />
+        <input id="manual-id" placeholder="ID del bombero (ej. B2001)" style="flex:1;min-width:180px" />
         <select id="manual-motivo" style="flex:1;min-width:180px">
           <option value="Guardia">Guardia</option>
-          <option value="Entrenamiento">Entrenamiento</option>
-          <option value="Servicio">Servicio</option>
+          <option value="Academia">Academia</option>
+          <option value="Curso">Curso</option>
+          <option value="Reunión">Reunión</option>
           <option value="Visita">Visita</option>
         </select>
         <button id="manual-btn">Registrar ingreso/salida</button>
       </div>
       <div id="manual-status" class="sub" style="margin-top:6px;color:var(--muted)">—</div>
+      <div class="small">La primera vez se registra <b>Entrada</b>; la siguiente, <b>Salida</b> (se recuerda localmente por ID en este equipo).</div>
     </div>
 
     <div class="footer" id="updated">Actualizado: —</div>
@@ -78,11 +80,11 @@
 
 <script>
   /* ==== Config ==== */
-  const CUARTEL_NAME = "Cuartel 1";                  // ← cambia en C2/C3/C4
-  const API_BASE = "https://script.google.com/macros/s/AKfycby87PpJE16_zKG456oOuV5Zz98sDUP-94az0-EUiSWuzHWU8Ilxc0xTqez7h2TxdGHZ/exec";     // ← tu /exec
+  const CUARTEL_NAME = "Cuartel 1";                         // ← este archivo es para el Cuartel 1
+  const API_BASE = "https://script.google.com/macros/s/AKfycby87PpJE16_zKG456oOuV5Zz98sDUP-94az0-EUiSWuzHWU8Ilxc0xTqez7h2TxdGHZ/exec";   // ← reemplaza por tu /exec
   const REFRESH_MS = 5000;
 
-  // Map de logos (pon tus rutas reales)
+  // Logos por cuartel (sube img/c1.png, c2.png, c3.png, c4.png)
   const LOGOS = {
     "Cuartel 1": "img/c1.png",
     "Cuartel 2": "img/c2.png",
@@ -192,7 +194,6 @@
 
           <div class="label" style="margin-top:4px">Unidades activas</div>
           <div id="box-un-${cu}" class="unit-list"></div>
-          <div class="compact">Marca todas las que estén presentes ahora.</div>
 
           <div class="row" style="margin-top:10px">
             <button class="btn-save" data-cu="${cu}">Guardar estado</button>
@@ -208,9 +209,9 @@
       } else {
         const view = document.createElement('div');
         view.innerHTML = `
-          <div class="state-line">Cuartelero: <span id="view-cu-${cu}">—</span></div>
-          <div class="state-line">Conductor: <span id="view-co-${cu}">—</span></div>
-          <div class="label" style="margin-top:6px">Unidades activas</div>
+          <div class="label" style="margin-top:6px">Cuartelero: <b id="view-cu-${cu}">—</b></div>
+          <div class="label" style="margin-top:2px">Conductor: <b id="view-co-${cu}">—</b></div>
+          <div class="label" style="margin-top:8px">Unidades activas</div>
           <div id="chips-${cu}" class="chips"></div>
           <div class="footer" id="saved-${cu}">—</div>
         `;
@@ -334,6 +335,57 @@
 
   document.getElementById('refreshBtn').addEventListener('click', ()=>{ loadAforo(); loadEstado(); });
 
+  /* ==== Ingreso manual por ID (Entrada/Salida sin toggle) ==== */
+  const inputID = document.getElementById("manual-id");
+  const inputMotivo = document.getElementById("manual-motivo");
+  const btnManual = document.getElementById("manual-btn");
+  const lblManual = document.getElementById("manual-status");
+
+  // Estado local (por cuartel) para decidir entrada/salida si no hay info del servidor
+  function localKey(id){ return `inside_${CUARTEL_NAME}_${id}`; }
+  function getLocalInside(id){ return localStorage.getItem(localKey(id)) === "1"; }
+  function setLocalInside(id, v){ localStorage.setItem(localKey(id), v ? "1" : "0"); }
+
+  btnManual.addEventListener("click", async ()=>{
+    const id = (inputID.value || "").trim().toUpperCase();
+    const motivo = inputMotivo.value || "Sin Motivo";
+    if (!id){ lblManual.textContent = "⚠️ Ingresa un ID válido"; return; }
+
+    lblManual.textContent = "Buscando…";
+    try{
+      // 1) Buscar datos del bombero
+      const bom = await jsonp(API_BASE + "?op=bomberos");
+      const b = bom[id];
+      if (!b){ lblManual.textContent = "❌ ID no encontrado en hoja Bomberos"; return; }
+
+      // 2) Decidir acción según estado local (Entrada por defecto la primera vez)
+      const wasInside = getLocalInside(id);
+      const accion = wasInside ? "Salida" : "Entrada";
+
+      // 3) Enviar registro
+      lblManual.textContent = "Registrando " + accion + "…";
+      const url = `${API_BASE}?id=${encodeURIComponent(id)}&nombre=${encodeURIComponent(b.nombre)}&cargo=${encodeURIComponent(b.cargo)}&cuartel=${encodeURIComponent(CUARTEL_NAME)}&accion=${encodeURIComponent(accion)}&motivo=${encodeURIComponent(motivo)}`;
+      const res = await fetch(url, { cache: "no-store" });
+      const txt = await res.text();
+
+      if (txt.includes("OK")){
+        // Alternar estado local
+        setLocalInside(id, !wasInside);
+        lblManual.textContent = `✅ ${accion} registrada`;
+        inputID.value = "";
+        // refrescar conteos
+        loadAforo();
+        setTimeout(()=>{ lblManual.textContent="—"; }, 4000);
+      }else{
+        lblManual.textContent = "⚠️ Error: " + txt;
+      }
+    }catch(err){
+      console.error(err);
+      lblManual.textContent = "❌ Error de conexión";
+    }
+  });
+
+  /* ==== Init ==== */
   (async function init(){
     buildCards();
     hookButtons();
@@ -343,47 +395,6 @@
     setInterval(loadAforo, REFRESH_MS);
     setInterval(loadEstado, REFRESH_MS * 2);
   })();
-    // === Ingreso manual por ID ===
-  const inputID = document.getElementById("manual-id");
-  const inputMotivo = document.getElementById("manual-motivo");
-  const btnManual = document.getElementById("manual-btn");
-  const lblManual = document.getElementById("manual-status");
-
-  async function registrarManual() {
-    const id = (inputID.value || "").trim().toUpperCase();
-    const motivo = inputMotivo.value || "Sin Motivo";
-    if (!id) { lblManual.textContent = "⚠️ Ingresa un ID válido"; return; }
-
-    lblManual.textContent = "Enviando…";
-
-    try {
-      // Consulta datos del bombero por ID
-      const bom = await jsonp(API_BASE + "?op=bomberos");
-      const b = bom[id];
-      if (!b) { lblManual.textContent = "❌ ID no encontrado"; return; }
-
-      const nombre = encodeURIComponent(b.nombre);
-      const cargo = encodeURIComponent(b.cargo);
-      const cuartel = encodeURIComponent(CUARTEL_NAME);
-
-      // Registrar asistencia (automático entrada/salida)
-      const res = await fetch(`${API_BASE}?id=${id}&nombre=${nombre}&cargo=${cargo}&cuartel=${cuartel}&accion=toggle&motivo=${encodeURIComponent(motivo)}`);
-      const txt = await res.text();
-
-      lblManual.textContent = (txt.includes("OK")) ? "✅ Registrado correctamente" : "⚠️ Error: " + txt;
-
-      // Actualizar datos visuales
-      loadAforo();
-      setTimeout(()=>lblManual.textContent="—", 4000);
-      inputID.value="";
-    } catch (err) {
-      console.error(err);
-      lblManual.textContent = "❌ Error de conexión";
-    }
-  }
-
-  btnManual.addEventListener("click", registrarManual);
-
 </script>
 </body>
 </html>
