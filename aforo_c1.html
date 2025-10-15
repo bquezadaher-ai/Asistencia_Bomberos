@@ -13,7 +13,9 @@
   .sub{color:var(--muted); margin:0 0 24px}
   .grid{display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap:16px;}
   .card{background:var(--card); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.25);}
-  .title-row{display:flex; align-items:center; gap:10px; margin-bottom:6px}
+  .head{display:flex; align-items:center; gap:12px; margin-bottom:6px}
+  .logo-cu{width:54px; height:54px; object-fit:contain; border-radius:10px; background:#0f1633; border:1px solid #2a356a}
+  .title{display:flex; align-items:center; gap:8px}
   .editable-tag{font-size:11px; padding:2px 8px; border-radius:999px; background:#103a2f; color:#9ef3c7; border:1px solid #2a6f59}
   .readonly-tag{font-size:11px; padding:2px 8px; border-radius:999px; background:#2a2f52; color:#c7cff1; border:1px solid #3d4681}
   .label{color:var(--muted); font-size:13px; margin-bottom:6px}
@@ -29,19 +31,16 @@
   select,input{padding:10px;border-radius:8px;border:1px solid #2a356a;background:#0f1633;color:#e9ecff;width:100%;}
   .footer{margin-top:10px; color:var(--muted); font-size:12px}
 
-  /* Check list (unidades) */
   .unit-list{ border:1px solid #2a356a; background:#0f1633; border-radius:8px; padding:8px; max-height:150px; overflow:auto; }
   .unit-item{ display:flex; align-items:center; gap:8px; padding:4px 6px; border-radius:6px; }
   .unit-item:hover{ background:#121b3d; }
   .unit-item input{ transform:scale(1.05); }
   .compact{ font-size:13px; color:var(--muted); }
 
-  /* Chips (para ver unidades activas) */
   .chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
   .chip{ background:#0f1633; border:1px solid #2a356a; color:var(--ink); padding:4px 10px; border-radius:9999px; font-size:12px; }
   .chip .dot{ width:8px; height:8px; background:var(--accent); border-radius:9999px; display:inline-block; margin-right:6px; vertical-align:middle; }
 
-  /* Bloque estado (ver) */
   .state-line{ font-size:13px; margin-top:6px; color:#d8defe; }
   .state-line span{ color:#9aa3c7; }
 </style>
@@ -57,20 +56,26 @@
       <span id="led" class="led"></span>
     </div>
 
-    <div class="grid" id="grid">
-      <!-- Las tarjetas se construyen por JS para poder decidir qué es editable -->
-    </div>
+    <div class="grid" id="grid"></div>
 
     <div class="footer" id="updated">Actualizado: —</div>
   </div>
 
 <script>
-  /* ========= Config ========= */
-  const CUARTEL_NAME = "Cuartel 1";  // ← Cambia a "Cuartel 2", "Cuartel 3", "Cuartel 4" en las otras páginas
-  const API_BASE = "https://script.google.com/macros/s/AKfycby87PpJE16_zKG456oOuV5Zz98sDUP-94az0-EUiSWuzHWU8Ilxc0xTqez7h2TxdGHZ/exec"; // ← reemplaza por tu /exec
+  /* ==== Config ==== */
+  const CUARTEL_NAME = "Cuartel 1";                  // ← cambia en C2/C3/C4
+  const API_BASE = "https://script.google.com/macros/s/AKfycby87PpJE16_zKG456oOuV5Zz98sDUP-94az0-EUiSWuzHWU8Ilxc0xTqez7h2TxdGHZ/exec";     // ← tu /exec
   const REFRESH_MS = 5000;
 
-  /* ========= Utilidades ========= */
+  // Map de logos (pon tus rutas reales)
+  const LOGOS = {
+    "Cuartel 1": "img/c1.png",
+    "Cuartel 2": "img/c2.png",
+    "Cuartel 3": "img/c3.png",
+    "Cuartel 4": "img/c4.png",
+  };
+
+  /* ==== Utils ==== */
   function jsonp(url){
     return new Promise((resolve, reject)=>{
       const cb = "cb_" + Math.random().toString(36).slice(2);
@@ -82,7 +87,6 @@
       setTimeout(()=>{ try{s.remove()}catch{} }, 12000);
     });
   }
-
   function renderChips(container, list){
     container.innerHTML = "";
     (list||[]).forEach(txt=>{
@@ -92,7 +96,6 @@
       container.appendChild(chip);
     });
   }
-
   function renderCheckboxList(container, allUnits, selected){
     container.innerHTML = "";
     const setSel = new Set(selected||[]);
@@ -125,9 +128,15 @@
     });
   }
 
-  /* ========= Construcción de tarjetas ========= */
+  /* ==== UI ==== */
   const cuarteles = ["Cuartel 1","Cuartel 2","Cuartel 3","Cuartel 4"];
   const grid = document.getElementById('grid');
+  const el = {
+    status: document.getElementById('status'),
+    led: document.getElementById('led'),
+    btn: document.getElementById('refreshBtn'),
+    updated: document.getElementById('updated'),
+  };
 
   function buildCards(){
     grid.innerHTML = "";
@@ -138,20 +147,21 @@
 
       const editable = (cu === CUARTEL_NAME);
       const tag = editable ? '<span class="editable-tag">Editable</span>' : '<span class="readonly-tag">Solo lectura</span>';
+      const logo = LOGOS[cu] || "img/logocuerpo.png";
 
-      // encabezado y contador
       card.innerHTML = `
-        <div class="title-row">
-          <div class="label">${cu}</div>
-          ${tag}
+        <div class="head">
+          <img class="logo-cu" src="${logo}" alt="${cu}">
+          <div class="title">
+            <div class="label">${cu}</div>
+            ${tag}
+          </div>
         </div>
         <div class="value" id="cnt-${cu}">0</div>
         <div class="name">Voluntarios dentro</div>
       `;
 
-      // zona estado
       if (editable){
-        // Selects + checklist + botones guardar/limpiar + chips de resultado
         const panel = document.createElement('div');
         panel.innerHTML = `
           <div class="row" style="margin-top:8px">
@@ -167,11 +177,11 @@
 
           <div class="label" style="margin-top:4px">Unidades activas</div>
           <div id="box-un-${cu}" class="unit-list"></div>
-          <div class="compact">Marca todas las que estén presentes ahora (checklist).</div>
+          <div class="compact">Marca todas las que estén presentes ahora.</div>
 
           <div class="row" style="margin-top:10px">
             <button class="btn-save" data-cu="${cu}">Guardar estado</button>
-            <button class="btn-clear btn-alt" data-cu="${cu}">Limpiar selección</button>
+            <button class="btn-clear btn-alt" data-cu="${cu}">Limpiar</button>
           </div>
 
           <div class="label">Unidades guardadas</div>
@@ -181,7 +191,6 @@
         `;
         card.appendChild(panel);
       } else {
-        // Solo lectura: líneas de estado + chips
         const view = document.createElement('div');
         view.innerHTML = `
           <div class="state-line">Cuartelero: <span id="view-cu-${cu}">—</span></div>
@@ -197,24 +206,14 @@
     });
   }
 
-  /* ========= Elementos comunes ========= */
-  const el = {
-    status: document.getElementById('status'),
-    led: document.getElementById('led'),
-    btn: document.getElementById('refreshBtn'),
-    updated: document.getElementById('updated'),
-  };
-
-  /* ========= Carga de datos ========= */
+  /* ==== Datos ==== */
   let ALL_UNITS = [];
   let CUARTELEROS = [];
   let CONDUCTORES = [];
 
   async function loadCatalogos(){
-    // Bomberos
     const bom = await jsonp(API_BASE + "?op=bomberos");
-    CUARTELEROS = [];
-    CONDUCTORES = [];
+    CUARTELEROS = []; CONDUCTORES = [];
     Object.values(bom).forEach(b=>{
       if (b.cuartelero) CUARTELEROS.push(b.nombre);
       if (b.conductor)  CONDUCTORES.push(b.nombre);
@@ -222,7 +221,6 @@
     CUARTELEROS.sort((a,b)=>a.localeCompare(b));
     CONDUCTORES.sort((a,b)=>a.localeCompare(b));
 
-    // Unidades globales
     const uni = await jsonp(API_BASE + "?op=unidades");
     ALL_UNITS = uni.unidades || [];
   }
@@ -235,8 +233,7 @@
 
       const counts = data.counts || {};
       cuarteles.forEach(cu=>{
-        const k = "cnt-" + cu;
-        const node = document.getElementById(k);
+        const node = document.getElementById("cnt-" + cu);
         if (node) node.textContent = counts[cu] || 0;
       });
 
@@ -251,18 +248,14 @@
 
   async function loadEstado(){
     const est = await jsonp(API_BASE + "?op=estado");
-
-    // Por cada cuartel, aplica el estado
     for (const cu of cuarteles){
       const e = est[cu] || {cuartelero:"", conductor:"", unidades:[], updated:""};
       if (cu === CUARTEL_NAME){
-        // Rellenar selects + checklist y preseleccionar
         fillSelect(document.getElementById(`sel-cu-${cu}`), CUARTELEROS, e.cuartelero);
         fillSelect(document.getElementById(`sel-co-${cu}`), CONDUCTORES, e.conductor);
         renderCheckboxList(document.getElementById(`box-un-${cu}`), ALL_UNITS, e.unidades);
         renderChips(document.getElementById(`chips-${cu}`), e.unidades);
       } else {
-        // Solo lectura
         const vcu = document.getElementById(`view-cu-${cu}`);
         const vco = document.getElementById(`view-co-${cu}`);
         if (vcu) vcu.textContent = e.cuartelero || "—";
@@ -274,7 +267,6 @@
     }
   }
 
-  /* ========= Guardar / Limpiar (solo cuartel editable) ========= */
   async function guardarEstado(cu){
     if (cu !== CUARTEL_NAME) return;
     const selCu = document.getElementById(`sel-cu-${cu}`);
@@ -307,7 +299,6 @@
       lbl.textContent = "Error al guardar";
     }
   }
-
   function limpiarSeleccion(cu){
     if (cu !== CUARTEL_NAME) return;
     const boxUn = document.getElementById(`box-un-${cu}`);
@@ -317,26 +308,16 @@
     renderChips(chips, []);
     lbl.textContent = "—";
   }
-
   function hookButtons(){
-    // Delegación de eventos para botones guardar/limpiar del cuartel editable
     grid.addEventListener('click', (ev)=>{
       const bSave = ev.target.closest('.btn-save');
       const bClr  = ev.target.closest('.btn-clear');
-      if (bSave){
-        const cu = bSave.dataset.cu;
-        guardarEstado(cu);
-      } else if (bClr){
-        const cu = bClr.dataset.cu;
-        limpiarSeleccion(cu);
-      }
+      if (bSave)  guardarEstado(bSave.dataset.cu);
+      if (bClr)   limpiarSeleccion(bClr.dataset.cu);
     });
   }
 
-  /* ========= Init ========= */
-  document.getElementById('refreshBtn').addEventListener('click', ()=>{
-    loadAforo(); loadEstado();
-  });
+  document.getElementById('refreshBtn').addEventListener('click', ()=>{ loadAforo(); loadEstado(); });
 
   (async function init(){
     buildCards();
@@ -345,7 +326,7 @@
     await loadAforo();
     await loadEstado();
     setInterval(loadAforo, REFRESH_MS);
-    setInterval(loadEstado, REFRESH_MS * 2); // estado puede actualizarse un poco menos frecuente
+    setInterval(loadEstado, REFRESH_MS * 2);
   })();
 </script>
 </body>
