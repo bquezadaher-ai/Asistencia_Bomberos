@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aforo – Central (Solo lectura)</title>
+<style>
+  :root{ --bg:#0b1020; --card:#111735; --ink:#e9ecff; --muted:#9aa3c7; --accent:#36d399; }
+  *{box-sizing:border-box}
+  body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:linear-gradient(120deg,#0b1020,#0e1430); color:var(--ink);}
+  .wrap{max-width:1400px; margin:40px auto; padding:0 16px;}
+  h1{font-size:clamp(22px,3.5vw,34px); margin:0 0 8px}
+  .sub{color:var(--muted); margin:0 0 24px}
+  .grid{display:grid; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap:16px;}
+  .card{background:var(--card); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.25);}
+  .head{display:flex; align-items:center; gap:12px; margin-bottom:6px}
+  .logo-cu{width:60px; height:60px; object-fit:contain; border-radius:10px; background:#0f1633; border:1px solid #2a356a}
+  .label{color:var(--muted); font-size:13px; margin-bottom:6px}
+  .value{font-size:50px; font-weight:800; line-height:1; margin-bottom:6px}
+  .name{font-size:13px; opacity:.9}
+  .chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .chip{ background:#0f1633; border:1px solid #2a356a; color:#e9ecff; padding:4px 10px; border-radius:9999px; font-size:12px; }
+  .chip .dot{ width:8px; height:8px; background:var(--accent); border-radius:9999px; display:inline-block; margin-right:6px; vertical-align:middle; }
+  .footer{margin-top:10px; color:var(--muted); font-size:12px}
+  .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:10px 0 20px}
+  button{background:var(--accent); color:#0b1020; border:none; padding:8px 12px; border-radius:10px; font-weight:700; cursor:pointer}
+  .led{width:10px; height:10px; border-radius:999px; background:#555}
+  .led.ok{background:#36d399}
+  .led.bad{background:#ef4444}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Central – Aforo y Estado (Solo lectura)</h1>
+    <p class="sub">Vista consolidada de los cuatro cuarteles.</p>
+
+    <div class="row">
+      <button id="refreshBtn">Actualizar ahora</button>
+      <span id="status" class="sub">Esperando datos…</span>
+      <span id="led" class="led"></span>
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="label">Total en planta</div>
+      <div id="tot" class="value" style="color:var(--accent)">0</div>
+      <div class="footer" id="updated">Actualizado: —</div>
+    </div>
+  </div>
+
+<script>
+  const API_BASE = "TU_URL_DE_APPS_SCRIPT/exec";   // ← tu /exec
+  const REFRESH_MS = 5000;
+
+  const LOGOS = {
+    "Cuartel 1": "img/c1.png",
+    "Cuartel 2": "img/c2.png",
+    "Cuartel 3": "img/c3.png",
+    "Cuartel 4": "img/c4.png",
+  };
+  const CUARTELES = ["Cuartel 1","Cuartel 2","Cuartel 3","Cuartel 4"];
+
+  const grid = document.getElementById('grid');
+  const el = {
+    status: document.getElementById('status'),
+    led: document.getElementById('led'),
+    btn: document.getElementById('refreshBtn'),
+    updated: document.getElementById('updated'),
+    tot: document.getElementById('tot'),
+  };
+
+  function jsonp(url){
+    return new Promise((resolve,reject)=>{
+      const cb="cb_"+Math.random().toString(36).slice(2);
+      window[cb]=d=>{resolve(d);try{delete window[cb]}catch{}};
+      const s=document.createElement('script');
+      s.src=url+(url.includes('?')?'&':'?')+'callback='+cb+'&_='+Date.now();
+      s.onerror=()=>reject(new Error('JSONP error'));
+      document.body.appendChild(s);
+      setTimeout(()=>{try{s.remove()}catch{}},12000);
+    });
+  }
+  function renderChips(container, list){
+    container.innerHTML = "";
+    (list||[]).forEach(txt=>{
+      const chip=document.createElement('span');
+      chip.className='chip';
+      chip.innerHTML='<span class="dot"></span>'+txt;
+      container.appendChild(chip);
+    });
+  }
+
+  function buildCards(){
+    grid.innerHTML="";
+    CUARTELES.forEach(cu=>{
+      const card=document.createElement('div');
+      card.className='card';
+      const logo=LOGOS[cu]||"img/logocuerpo.png";
+      card.innerHTML=`
+        <div class="head">
+          <img class="logo-cu" src="${logo}" alt="${cu}">
+          <div>
+            <div class="label">${cu}</div>
+            <div class="value" id="cnt-${cu}">0</div>
+            <div class="name">Voluntarios dentro</div>
+          </div>
+        </div>
+        <div class="name">Cuartelero: <b id="view-cu-${cu}">—</b></div>
+        <div class="name" style="margin-top:4px">Conductor: <b id="view-co-${cu}">—</b></div>
+        <div class="label" style="margin-top:8px">Unidades activas</div>
+        <div id="chips-${cu}" class="chips"></div>
+        <div class="footer" id="saved-${cu}">—</div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+
+  async function loadAforo(){
+    try{
+      el.status.textContent="Actualizando…";
+      el.led.classList.remove('bad'); el.led.classList.add('ok');
+      const data = await jsonp(API_BASE+"?op=aforo");
+      const counts = data.counts || {};
+      let total = 0;
+      CUARTELES.forEach(cu=>{
+        const v = counts[cu] || 0;
+        total += v;
+        const n = document.getElementById('cnt-'+cu);
+        if (n) n.textContent = v;
+      });
+      el.tot.textContent = total;
+      el.updated.textContent = "Actualizado: " + (data.updated || new Date().toLocaleString("es-CL"));
+      el.status.textContent="OK";
+    }catch(e){
+      console.error(e);
+      el.status.textContent="Error";
+      el.led.classList.remove('ok'); el.led.classList.add('bad');
+    }
+  }
+
+  async function loadEstado(){
+    const est = await jsonp(API_BASE + "?op=estado");
+    CUARTELES.forEach(cu=>{
+      const e = est[cu] || {cuartelero:"", conductor:"", unidades:[], updated:""};
+      const vcu = document.getElementById(`view-cu-${cu}`);
+      const vco = document.getElementById(`view-co-${cu}`);
+      if (vcu) vcu.textContent = e.cuartelero || "—";
+      if (vco) vco.textContent = e.conductor  || "—";
+      renderChips(document.getElementById(`chips-${cu}`), e.unidades);
+      const saved = document.getElementById(`saved-${cu}`);
+      if (saved) saved.textContent = e.updated ? ("Última actualización: " + e.updated) : "—";
+    });
+  }
+
+  el.btn.addEventListener('click', ()=>{ loadAforo(); loadEstado(); });
+
+  (async function init(){
+    buildCards();
+    await loadAforo();
+    await loadEstado();
+    setInterval(loadAforo, 5000);
+    setInterval(loadEstado, 10000);
+  })();
+</script>
+</body>
+</html>
