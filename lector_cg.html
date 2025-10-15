@@ -5,24 +5,24 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Lector QR – Cuartel General</title>
 <style>
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0b1020;color:#e9ecff}
-  .wrap{max-width:900px;margin:24px auto;padding:0 16px}
-  h1{margin:8px 0 4px}
-  .sub{color:#9aa3c7;margin:0 0 16px}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0 16px}
-  button{background:#36d399;color:#0b1020;border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
-  .btn-alt{background:#1f2b63;color:#e9ecff}
-  .pill{border:1px solid #2a356a;background:#0f1633;border-radius:999px;padding:6px 10px;cursor:pointer}
-  .active{outline:2px solid #36d399}
-  #reader{width:100%;max-width:520px;aspect-ratio:3/4;background:#000;border-radius:12px;overflow:hidden}
-  .log{background:#0f1633;border:1px solid #2a356a;border-radius:10px;padding:10px;min-height:44px}
-  .ok{color:#36d399}.bad{color:#ef4444}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0b1020;color:#e9ecff}
+.wrap{max-width:900px;margin:24px auto;padding:0 16px}
+h1{margin:8px 0 4px}.sub{color:#9aa3c7;margin:0 0 16px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0 16px}
+button{background:#36d399;color:#0b1020;border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer}
+.btn-alt{background:#1f2b63;color:#e9ecff}
+.pill{border:1px solid #2a356a;background:#0f1633;border-radius:999px;padding:6px 10px;cursor:pointer}
+.active{outline:2px solid #36d399}
+#reader{width:100%;max-width:520px;aspect-ratio:3/4;background:#000;border-radius:12px;overflow:hidden}
+.log{background:#0f1633;border:1px solid #2a356a;border-radius:10px;padding:10px;min-height:56px}
+.ok{color:#36d399}.bad{color:#ef4444}
+.frase{margin-top:6px;color:#cfe7ff}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Lector QR – Cuartel General</h1>
-  <p class="sub">Escanea un QR. El sistema alterna Entrada/Salida automáticamente y registra para este cuartel.</p>
+  <p class="sub">Escanea un QR. Se pronuncia la frase personalizada y se registra Entrada/Salida en este cuartel.</p>
 
   <div class="row">
     <span>Motivo:</span>
@@ -37,169 +37,179 @@
 
   <div class="row" style="margin-top:12px">
     <button id="startBtn">Iniciar cámara</button>
-    <button id="stopBtn" class="btn-alt">Detener cámara</button>
-    <button id="switchBtn" class="btn-alt">Cambiar cámara</button>
+    <button id="stopBtn" class="btn-alt">Detener</button>
+    <button id="switchBtn" class="btn-alt">Cambiar</button>
   </div>
 
   <div class="log" id="log">Listo.</div>
+  <div class="frase" id="frase">—</div>
 </div>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
-  // ⚙️ Configuración
-  const CUARTEL_NAME = "Cuartel General"; // cambia en c2/c3/Cuartel General
-  const API_BASE = "https://script.google.com/macros/s/AKfycbzK_cehxFBwzJBvCYhomF221LP5C8gJ8-gN6PuydiJUJLkjjHS384g6dz2xIkbvXq2z/exec"; // ← pega aquí tu /exec
-  const SCAN_COOLDOWN_MS = 5000; // antirréplica por ID
+/* ===== Configura esto ===== */
+const CUARTEL_NAME = "Cuartel General";
+const API_BASE = "https://script.google.com/macros/s/AKfycbzGR_re4fwu4XY4ufVgr6ReXkYaAc4EtwBByepe_1T-Cl6xltk28g-MkvRWVR4i-Enj/exec";  // ← REEMPLAZA por tu /exec
+const SCAN_COOLDOWN_MS = 5000;
+/* ========================== */
 
-  // Estado UI
-  const logEl = document.getElementById('log');
-  let currentMotivo = "Guardia";
-  document.querySelectorAll('.pill').forEach(p=>{
-    p.addEventListener('click', ()=>{
-      document.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));
-      p.classList.add('active');
-      currentMotivo = p.dataset.m;
-    });
+const logEl = document.getElementById('log');
+const fraseEl = document.getElementById('frase');
+let currentMotivo = "Guardia";
+document.querySelectorAll('.pill').forEach(p=>{
+  p.addEventListener('click', ()=>{
+    document.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));
+    p.classList.add('active');
+    currentMotivo = p.dataset.m;
   });
+});
 
-  // JSONP helper (sin CORS)
-  function jsonp(url){
-    return new Promise((resolve,reject)=>{
-      const cb="cb_"+Math.random().toString(36).slice(2);
-      window[cb]=d=>{resolve(d);try{delete window[cb]}catch{}};
-      const s=document.createElement('script');
-      s.src=url+(url.includes('?')?'&':'?')+"callback="+cb+"&_="+Date.now();
-      s.onerror=()=>reject(new Error("JSONP error"));
-      document.body.appendChild(s);
-      setTimeout(()=>{try{s.remove()}catch{}},12000);
+// JSONP helper
+function jsonp(url){
+  return new Promise((resolve,reject)=>{
+    const cb="cb_"+Math.random().toString(36).slice(2);
+    window[cb]=d=>{ resolve(d); try{ delete window[cb] }catch{} };
+    const s=document.createElement('script');
+    s.src=url+(url.includes('?')?'&':'?')+"callback="+cb+"&_="+Date.now();
+    s.onerror=()=>reject(new Error("JSONP error"));
+    document.body.appendChild(s);
+    setTimeout(()=>{ try{s.remove()}catch{} }, 12000);
+  });
+}
+
+// Voz
+function speak(text){
+  try{
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang="es-CL";
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  }catch{}
+}
+
+// Envío sin CORS
+async function sendBeacon(url){
+  try{
+    await fetch(url, { mode:"no-cors", cache:"no-store" });
+    return true;
+  }catch{
+    return await new Promise(res=>{
+      const img = new Image();
+      img.onload = ()=>res(true);
+      img.onerror= ()=>res(false);
+      img.src = url + (url.includes('?')?'&':'?') + "_=" + Date.now();
+      setTimeout(()=>res(true), 1500);
     });
   }
+}
 
-  // TTS
-  function speak(text){
-    try{
-      const u=new SpeechSynthesisUtterance(text);
-      u.lang="es-CL";
-      speechSynthesis.cancel();
-      speechSynthesis.speak(u);
-    }catch{}
-  }
+// Antirréplica
+const lastScanAt = new Map();
+function canAccept(id){
+  const t=Date.now(), last=lastScanAt.get(id)||0;
+  if (t-last < SCAN_COOLDOWN_MS) return false;
+  lastScanAt.set(id,t);
+  return true;
+}
 
-  // Antirréplica por ID
-  const lastScanAt = new Map();
-  function canAccept(id){
-    const t=Date.now(), last=lastScanAt.get(id)||0;
-    if (t-last < SCAN_COOLDOWN_MS) return false;
-    lastScanAt.set(id, t);
-    return true;
-  }
+// Extraer ID del QR (texto simple o JSON {id:"..."})
+function extractIdFromQr(text){
+  try{
+    const obj = JSON.parse(text);
+    if (obj && obj.id) return String(obj.id).trim().toUpperCase();
+  }catch{}
+  return String(text||"").trim().toUpperCase();
+}
 
-  // Extraer ID del QR (texto simple o JSON {"id":...})
-  function extractIdFromQr(text){
-    try{
-      const obj = JSON.parse(text);
-      if (obj && obj.id) return String(obj.id).trim().toUpperCase();
-    }catch{}
-    return String(text||"").trim().toUpperCase();
-  }
+// Flujo principal: consulta próxima acción + frase → habla → registra
+async function registrarPorId(idPlano, motivoSel){
+  const id = (idPlano||"").trim().toUpperCase();
+  const motivo = motivoSel || "Guardia";
+  if (!id){ logEl.textContent="ID vacío"; return; }
 
-  // Envío robusto sin CORS: primero fetch no-cors, si falla usa <img>
-  async function sendBeacon(url){
-    try{
-      await fetch(url, { mode: "no-cors", cache: "no-store" });
-      return true; // no-cors no da body; asumimos OK si no lanza excepción
-    }catch{
-      return await new Promise(res=>{
-        const img = new Image();
-        img.onload  = ()=>res(true);
-        img.onerror = ()=>res(false);
-        img.src = url + (url.includes('?')?'&':'?') + "_=" + Date.now();
-        setTimeout(()=>res(true), 1500); // timeout optimista
-      });
-    }
-  }
-
-  // Registrar (consulta bomberos → envía registro con accion=toggle)
-  async function registrar(id){
-    logEl.textContent = "Registrando…";
-    try{
-      // 1) datos del bombero
-      const bom = await jsonp(API_BASE + "?op=bomberos");
-      const b = bom[id];
-      if (!b){ logEl.innerHTML='<span class="bad">ID no encontrado</span>'; speak("ID no encontrado."); return; }
-
-      // 2) construir URL de registro (sin op=) -> tu Apps Script decide entrada/salida
-      const url = API_BASE
-        + "?id="      + encodeURIComponent(id)
-        + "&nombre="  + encodeURIComponent(b.nombre || "")
-        + "&cargo="   + encodeURIComponent(b.cargo  || "")
-        + "&cuartel=" + encodeURIComponent(CUARTEL_NAME)
-        + "&accion=toggle"
-        + "&motivo="  + encodeURIComponent(currentMotivo);
-
-      // 3) enviar sin CORS
-      const ok = await sendBeacon(url);
-      if (ok){
-        logEl.innerHTML = `<span class="ok">Enviado: ${b.nombre || id} (${CUARTEL_NAME})</span>`;
-        // Mensaje de voz genérico (el Apps Script define si fue Entrada/Salida)
-        speak(`Registro enviado para ${b.nombre || "voluntario"}.`);
-      }else{
-        logEl.innerHTML = `<span class="bad">No se pudo enviar el registro</span>`;
-        speak("Error al registrar.");
-      }
-    }catch(e){
-      console.error(e);
-      logEl.innerHTML = `<span class="bad">Error de red</span>`;
-      speak("Error de red.");
-    }
-  }
-
-  // html5-qrcode
-  const html5QrCode = new Html5Qrcode("reader");
-  let currentCameraId = null;
-
-  async function startCamera(){
-    logEl.textContent="Solicitando cámara…";
-    const devices = await Html5Qrcode.getCameras();
-    if (!devices || !devices.length){ logEl.innerHTML='<span class="bad">No hay cámaras</span>'; return; }
-    currentCameraId = currentCameraId || (devices.find(d=>/back|rear|environment/i.test(d.label))?.id || devices[0].id);
-    await html5QrCode.start(
-      { deviceId: { exact: currentCameraId } },
-      { fps: 10, qrbox: { width: 300, height: 300 } },
-      onScanSuccess,
-      onScanError
+  try{
+    logEl.textContent = "Consultando acción…";
+    fraseEl.textContent = "—";
+    const next = await jsonp(
+      API_BASE + "?op=next&id=" + encodeURIComponent(id) + "&cuartel=" + encodeURIComponent(CUARTEL_NAME)
     );
-    logEl.textContent="Cámara activa. Escanea un QR.";
-  }
+    if (!next || !next.ok){
+      logEl.innerHTML = '<span class="bad">Error al obtener acción</span>';
+      return;
+    }
 
-  async function stopCamera(){
-    try{ await html5QrCode.stop(); logEl.textContent="Cámara detenida."; }catch{}
-  }
+    // Frase personalizada
+    if (next.frase){
+      fraseEl.textContent = next.frase;
+      speak(next.frase);
+    } else {
+      fraseEl.textContent = "—";
+    }
 
-  async function switchCamera(){
-    try{
-      const devices = await Html5Qrcode.getCameras();
-      if (!devices || devices.length<2){ logEl.textContent="No hay otra cámara"; return; }
-      const idx = devices.findIndex(d=>d.id===currentCameraId);
-      const next = devices[(idx+1)%devices.length];
-      await html5QrCode.stop();
-      currentCameraId = next.id;
-      await startCamera();
-    }catch(e){ console.error(e); }
-  }
+    // Registrar con acción explícita (Entrada/Salida)
+    const url = API_BASE
+      + "?id="      + encodeURIComponent(id)
+      + "&nombre="  + encodeURIComponent(next.nombre || "")
+      + "&cargo="   + encodeURIComponent(next.cargo  || "")
+      + "&cuartel=" + encodeURIComponent(CUARTEL_NAME)
+      + "&accion="  + encodeURIComponent(next.accion)
+      + "&motivo="  + encodeURIComponent(motivo);
 
-  function onScanSuccess(decodedText){
-    const id = extractIdFromQr(decodedText);
-    if(!id) { logEl.innerHTML='<span class="bad">QR sin ID</span>'; return; }
-    if(!canAccept(id)) return; // evita múltiples lecturas del mismo QR
-    registrar(id); // no detenemos la cámara
+    logEl.textContent = "Registrando " + next.accion + "…";
+    const ok = await sendBeacon(url);
+    logEl.innerHTML = ok
+      ? `<span class="ok">OK: ${next.accion} para ${next.nombre||id}</span>`
+      : `<span class="bad">Error al registrar</span>`;
+  }catch(e){
+    console.error(e);
+    logEl.innerHTML = '<span class="bad">Error de red</span>';
   }
-  function onScanError(){ /* ignorar errores de foco/ruido */ }
+}
 
-  // Botones
-  document.getElementById('startBtn').addEventListener('click', startCamera);
-  document.getElementById('stopBtn').addEventListener('click', stopCamera);
-  document.getElementById('switchBtn').addEventListener('click', switchCamera);
+// Cámara (html5-qrcode)
+const html5QrCode = new Html5Qrcode("reader");
+let currentCameraId = null;
+
+async function startCamera(){
+  logEl.textContent="Solicitando cámara…";
+  const devices = await Html5Qrcode.getCameras();
+  if (!devices || !devices.length){
+    logEl.innerHTML='<span class="bad">No hay cámaras</span>'; return;
+  }
+  currentCameraId = currentCameraId || (devices.find(d=>/back|rear|environment/i.test(d.label))?.id || devices[0].id);
+  await html5QrCode.start(
+    { deviceId: { exact: currentCameraId } },
+    { fps: 10, qrbox: { width: 300, height: 300 } },
+    onScanSuccess,
+    onScanError
+  );
+  logEl.textContent="Cámara activa. Escanea un QR.";
+}
+async function stopCamera(){ try{ await html5QrCode.stop(); logEl.textContent="Cámara detenida."; }catch{} }
+async function switchCamera(){
+  try{
+    const devices = await Html5Qrcode.getCameras();
+    if (!devices || devices.length<2){ logEl.textContent="No hay otra cámara"; return; }
+    const idx = devices.findIndex(d=>d.id===currentCameraId);
+    const next = devices[(idx+1)%devices.length];
+    await html5QrCode.stop();
+    currentCameraId = next.id;
+    await startCamera();
+  }catch(e){ console.error(e); }
+}
+
+function onScanSuccess(decodedText){
+  const id = extractIdFromQr(decodedText);
+  if(!id){ logEl.innerHTML='<span class="bad">QR sin ID</span>'; return; }
+  if(!canAccept(id)) return;     // evita duplicados instantáneos
+  registrarPorId(id, currentMotivo);
+}
+function onScanError(){ /* ignorar ruidos */ }
+
+// Botones
+document.getElementById('startBtn').addEventListener('click', startCamera);
+document.getElementById('stopBtn').addEventListener('click', stopCamera);
+document.getElementById('switchBtn').addEventListener('click', switchCamera);
 </script>
 </body>
 </html>
