@@ -29,7 +29,7 @@
     <span class="pill active" data-m="Guardia">Guardia</span>
     <span class="pill" data-m="Academia">Academia</span>
     <span class="pill" data-m="Curso">Curso</span>
-    <span class="pill" data-m="Reunion">Reunión</span>
+    <span class="pill" data-m="Reunión">Reunión</span>
     <span class="pill" data-m="Visita">Visita</span>
   </div>
 
@@ -44,12 +44,11 @@
   <div class="log" id="log">Listo.</div>
 </div>
 
-<!-- Librería del lector -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
   // ⚙️ Configuración
-  const CUARTEL_NAME = "Cuartel 1";
-  const API_BASE = "https://script.google.com/macros/s/AKfycbzK_cehxFBwzJBvCYhomF221LP5C8gJ8-gN6PuydiJUJLkjjHS384g6dz2xIkbvXq2z/exec"; // ← pon tu /exec
+  const CUARTEL_NAME = "Cuartel 1"; // cambia en c2/c3/Cuartel General
+  const API_BASE = "https://script.google.com/macros/s/AKfycbzK_cehxFBwzJBvCYhomF221LP5C8gJ8-gN6PuydiJUJLkjjHS384g6dz2xIkbvXq2z/exec"; // ← pega aquí tu /exec
   const SCAN_COOLDOWN_MS = 5000; // antirréplica por ID
 
   // Estado UI
@@ -76,7 +75,7 @@
     });
   }
 
-  // TTS (voz)
+  // TTS
   function speak(text){
     try{
       const u=new SpeechSynthesisUtterance(text);
@@ -95,9 +94,7 @@
     return true;
   }
 
-  // Parseo del QR:
-  // admite: 1) solo ID (ej: BQ-001)
-  //         2) JSON con {id:"...", nombre:"...", cargo:"..."} (tomamos id)
+  // Extraer ID del QR (texto simple o JSON {"id":...})
   function extractIdFromQr(text){
     try{
       const obj = JSON.parse(text);
@@ -106,25 +103,54 @@
     return String(text||"").trim().toUpperCase();
   }
 
-  // Envío al backend (toggle)
+  // Envío robusto sin CORS: primero fetch no-cors, si falla usa <img>
+  async function sendBeacon(url){
+    try{
+      await fetch(url, { mode: "no-cors", cache: "no-store" });
+      return true; // no-cors no da body; asumimos OK si no lanza excepción
+    }catch{
+      return await new Promise(res=>{
+        const img = new Image();
+        img.onload  = ()=>res(true);
+        img.onerror = ()=>res(false);
+        img.src = url + (url.includes('?')?'&':'?') + "_=" + Date.now();
+        setTimeout(()=>res(true), 1500); // timeout optimista
+      });
+    }
+  }
+
+  // Registrar (consulta bomberos → envía registro con accion=toggle)
   async function registrar(id){
     logEl.textContent = "Registrando…";
     try{
-      const res = await jsonp(API_BASE+"?op=toggle"
-        +"&id="+encodeURIComponent(id)
-        +"&cuartel="+encodeURIComponent(CUARTEL_NAME)
-        +"&motivo="+encodeURIComponent(currentMotivo));
-      if(res && res.ok){
-        const msg = `${res.accion} para ${res.nombre||id} (${CUARTEL_NAME})`;
-        logEl.innerHTML = `<span class="ok">${msg}</span>`;
-        speak((res.accion==="Entrada"?"Bienvenido ":"Adiós ")+(res.nombre||"voluntario")+".");
+      // 1) datos del bombero
+      const bom = await jsonp(API_BASE + "?op=bomberos");
+      const b = bom[id];
+      if (!b){ logEl.innerHTML='<span class="bad">ID no encontrado</span>'; speak("ID no encontrado."); return; }
+
+      // 2) construir URL de registro (sin op=) -> tu Apps Script decide entrada/salida
+      const url = API_BASE
+        + "?id="      + encodeURIComponent(id)
+        + "&nombre="  + encodeURIComponent(b.nombre || "")
+        + "&cargo="   + encodeURIComponent(b.cargo  || "")
+        + "&cuartel=" + encodeURIComponent(CUARTEL_NAME)
+        + "&accion=toggle"
+        + "&motivo="  + encodeURIComponent(currentMotivo);
+
+      // 3) enviar sin CORS
+      const ok = await sendBeacon(url);
+      if (ok){
+        logEl.innerHTML = `<span class="ok">Enviado: ${b.nombre || id} (${CUARTEL_NAME})</span>`;
+        // Mensaje de voz genérico (el Apps Script define si fue Entrada/Salida)
+        speak(`Registro enviado para ${b.nombre || "voluntario"}.`);
       }else{
-        logEl.innerHTML = `<span class="bad">Error: ${res && res.error ? res.error : "no se pudo registrar"}</span>`;
+        logEl.innerHTML = `<span class="bad">No se pudo enviar el registro</span>`;
         speak("Error al registrar.");
       }
     }catch(e){
-      logEl.innerHTML = `<span class="bad">Error de red</span>`;
       console.error(e);
+      logEl.innerHTML = `<span class="bad">Error de red</span>`;
+      speak("Error de red.");
     }
   }
 
@@ -174,9 +200,6 @@
   document.getElementById('startBtn').addEventListener('click', startCamera);
   document.getElementById('stopBtn').addEventListener('click', stopCamera);
   document.getElementById('switchBtn').addEventListener('click', switchCamera);
-
-  // Autostart (cuando el usuario interactúa, algunos navegadores exigen click previo)
-  // startCamera(); // si lo quieres automático, descomenta
 </script>
 </body>
 </html>
