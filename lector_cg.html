@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Lector QR – Cuartel 1</title>
+<title>Lector QR – Cuartel General</title>
 <style>
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0b1020;color:#e9ecff}
   .wrap{max-width:900px;margin:24px auto;padding:0 16px}
@@ -21,7 +21,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Lector QR – Cuartel 1</h1>
+  <h1>Lector QR – Cuartel General</h1>
   <p class="sub">Escanea un QR. El sistema alterna Entrada/Salida automáticamente y registra para este cuartel.</p>
 
   <div class="row">
@@ -48,9 +48,9 @@
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script>
   // ⚙️ Configuración
-  const CUARTEL_NAME = "Cuartel 1";
+  const CUARTEL_NAME = "Cuartel General";
   const API_BASE = "REEMPLAZA_AQUI_TU_URL/exec"; // ← pon tu /exec
-  const SCAN_COOLDOWN_MS = 2000; // antirréplica por ID
+  const SCAN_COOLDOWN_MS = 5000; // antirréplica por ID
 
   // Estado UI
   const logEl = document.getElementById('log');
